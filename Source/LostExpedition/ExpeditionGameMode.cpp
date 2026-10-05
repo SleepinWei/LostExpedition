@@ -1,6 +1,7 @@
 #include "ExpeditionGameMode.h"
 #include "ExplorerCharacter.h"
 #include "ExpeditionActors.h"
+#include "ExpeditionTower.h"
 #include "Engine/Canvas.h"
 #include "Engine/Engine.h"
 #include "EngineUtils.h"
@@ -16,17 +17,33 @@ AExpeditionGameMode::AExpeditionGameMode() {
 }
 void AExpeditionGameMode::BeginPlay() {
     Super::BeginPlay();
-    if(FParse::Param(FCommandLine::Get(),TEXT("AdventureVisualReview"))) {
+    if(FParse::Param(FCommandLine::Get(),TEXT("WatchtowerStart"))) {
+        FTimerHandle Start;
+        GetWorldTimerManager().SetTimer(Start,FTimerDelegate::CreateWeakLambda(this,[this](){
+            if(TActorIterator<AExplorerCharacter> It(GetWorld());It) {
+                It->SetActorLocation(FVector(6530,-2070,725));It->SetActorRotation(FRotator(0,-90,0));
+                if(auto* PC=Cast<APlayerController>(It->GetController()))PC->SetControlRotation(FRotator(10,-90,0));
+                It->Notify(TEXT("SEA WATCHTOWER / Follow the pale lips. E grabs; SPACE climbs."));
+            }
+        }),.5f,false);
+    }
+    const bool TowerReview=FParse::Param(FCommandLine::Get(),TEXT("WatchtowerVisualReview"));
+    if(TowerReview||FParse::Param(FCommandLine::Get(),TEXT("AdventureVisualReview"))) {
         FTimerHandle Review;
-        GetWorldTimerManager().SetTimer(Review,FTimerDelegate::CreateWeakLambda(this,[this](){
+        GetWorldTimerManager().SetTimer(Review,FTimerDelegate::CreateWeakLambda(this,[this,TowerReview](){
             for(TActorIterator<AExpeditionGuard> It(GetWorld());It;++It)It->bTrainingTarget=true;
             if(TActorIterator<AExplorerCharacter> It(GetWorld());It) {
                 It->SetActorLocation(FVector(3520,0,740));It->SetActorRotation(FRotator::ZeroRotator);
                 if(auto* PC=Cast<APlayerController>(It->GetController()))PC->SetControlRotation(FRotator(5,0,0));
+                if(TowerReview) {
+                    It->SetActorLocation(FVector(6650,-3800,1519));It->SetActorRotation(FRotator::ZeroRotator);
+                    It->LedgeCooldown=0;It->BeginHang();
+                    if(auto* PC=Cast<APlayerController>(It->GetController()))PC->SetControlRotation(FRotator(9,28,0));
+                }
             }
             FTimerHandle Capture,Close;
-            GetWorldTimerManager().SetTimer(Capture,FTimerDelegate::CreateWeakLambda(this,[](){
-                FScreenshotRequest::RequestScreenshot(FPaths::ConvertRelativePathToFull(FPaths::ProjectDir()/TEXT("Docs/gameplay-preview.png")),true,false);
+            GetWorldTimerManager().SetTimer(Capture,FTimerDelegate::CreateWeakLambda(this,[TowerReview](){
+                FScreenshotRequest::RequestScreenshot(FPaths::ConvertRelativePathToFull(FPaths::ProjectDir()/(TowerReview?TEXT("Docs/tower-gameplay.png"):TEXT("Docs/gameplay-preview.png"))),true,false);
             }),6.f,false);
             GetWorldTimerManager().SetTimer(Close,FTimerDelegate::CreateWeakLambda(this,[](){FPlatformMisc::RequestExit(false);}),10.f,false);
         }),3.f,false);
@@ -49,6 +66,11 @@ void AExpeditionHUD::DrawHUD() {
     if(!P->bHasKey)Objective=P->GetActorLocation().X<1600?TEXT("Climb the pale limestone ledges"):TEXT("Cross the bridge / find the courtyard key");
     else if(!P->bGateOpen)Objective=TEXT("Use the key at the sanctuary gate");
     else Objective=TEXT("Collect 3 relics / reach the exit beacon");
+    const FVector Position=P->GetActorLocation();
+    if(Position.X>6200&&Position.X<8500&&Position.Y<-1750) {
+        const float Height=FMath::Clamp((Position.Z-96-ExpeditionTower::Base.Z)/100.f,0.f,42.f);
+        Objective=Height>41.5f?TEXT("WATCHTOWER SUMMIT / save at the beacon"):FString::Printf(TEXT("SEA WATCHTOWER  %.0f / 42 m  /  follow pale ledges"),Height);
+    }
     Text(Objective,45*S,98*S,White,1.05);
     Text(FString::Printf(TEXT("RELICS  %d / 3     KEY  %s"),P->Relics,P->bHasKey?TEXT("FOUND"):TEXT("--")),45*S,125*S,Gold,.95);
     DrawRect(Ink,25*S,H-119*S,300*S,91*S);
@@ -81,7 +103,7 @@ void AExpeditionHUD::DrawHUD() {
         float X=W/2-340*S,Y=H/2-220*S;
         Text(P->bCompleted?TEXT("EXPEDITION COMPLETE"):TEXT("EXPLORER'S JOURNAL"),X,Y,Gold,2.4);
         Text(TEXT("CLIFF SANCTUARY  /  an island beyond the charts"),X,Y+55*S,Dim,1.1);
-        TArray<FString> Lines=P->bCompleted?TArray<FString>{TEXT("You recovered all three relics and escaped the sanctuary."),TEXT("The lost expedition's trail lives on."),TEXT("F5  /  Start a fresh expedition")}:TArray<FString>{TEXT("01  Follow the pale ledges. E grabs; SPACE climbs up."),TEXT("02  Cross the suspension bridge. Save at the blue beacon."),TEXT("03  Clear the courtyard. Collect the key and two relics."),TEXT("04  Unlock the sanctuary. Recover the final relic."),TEXT("05  Find the exit beacon to finish the expedition."),TEXT("RMB aim / LMB fire / 1-2 weapons / R reload"),TEXT("Q medkit / G grenade / CTRL drop / F5 fresh start"),TEXT("TAB  /  Return to the expedition")};
+        TArray<FString> Lines=P->bCompleted?TArray<FString>{TEXT("You recovered all three relics and escaped the sanctuary."),TEXT("The lost expedition's trail lives on."),TEXT("F5  /  Start a fresh expedition")}:TArray<FString>{TEXT("01  Follow the pale ledges. E grabs; SPACE climbs up."),TEXT("02  Cross the suspension bridge. Save at the blue beacon."),TEXT("03  Clear the courtyard. Collect the key and two relics."),TEXT("04  Unlock the sanctuary. Recover the final relic."),TEXT("05  Find the exit beacon to finish the expedition."),TEXT("Optional: south courtyard path / climb the 42 m watchtower."),TEXT("RMB aim / LMB fire / 1-2 weapons / R reload"),TEXT("Q medkit / G grenade / CTRL drop / F5 fresh start"),TEXT("TAB  /  Return to the expedition")};
         for(int I=0;I<Lines.Num();I++)Text(Lines[I],X,Y+(100+I*35)*S,White,1.15);
     }
 }

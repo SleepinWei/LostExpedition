@@ -1,5 +1,5 @@
 Lost Expedition runtime smoke test
-39 checks; 0 failures
+64 checks; 0 failures
 
 PASS: Authored ruins and foliage generated
 PASS: Official UE tree integrated in inland slope
@@ -18,6 +18,31 @@ PASS: Complete collision-safe mantle 2
 PASS: Grab ledge 3
 PASS: Start mantle 3
 PASS: Complete collision-safe mantle 3
+PASS: Walk from courtyard through wall gap onto tower approach
+PASS: Tower continuous approach, grab and mantle 01 / 21
+PASS: Tower continuous approach, grab and mantle 02 / 21
+PASS: Tower continuous approach, grab and mantle 03 / 21
+PASS: Tower continuous approach, grab and mantle 04 / 21
+PASS: Tower continuous approach, grab and mantle 05 / 21
+PASS: Tower continuous approach, grab and mantle 06 / 21
+PASS: Tower continuous approach, grab and mantle 07 / 21
+PASS: Tower continuous approach, grab and mantle 08 / 21
+PASS: Tower continuous approach, grab and mantle 09 / 21
+PASS: Tower continuous approach, grab and mantle 10 / 21
+PASS: Tower continuous approach, grab and mantle 11 / 21
+PASS: Tower continuous approach, grab and mantle 12 / 21
+PASS: Tower continuous approach, grab and mantle 13 / 21
+PASS: Tower continuous approach, grab and mantle 14 / 21
+PASS: Tower continuous approach, grab and mantle 15 / 21
+PASS: Tower continuous approach, grab and mantle 16 / 21
+PASS: Tower continuous approach, grab and mantle 17 / 21
+PASS: Tower continuous approach, grab and mantle 18 / 21
+PASS: Tower continuous approach, grab and mantle 19 / 21
+PASS: Tower continuous approach, grab and mantle 20 / 21
+PASS: Tower continuous approach, grab and mantle 21 / 21
+PASS: Reach the open summit deck 42 metres above the entrance
+PASS: Summit checkpoint is visible and interactable
+PASS: All four tower checkpoints stand on collision-supported landings
 PASS: Blocked mantle rejected
 PASS: Drop releases ledge
 PASS: Fire consumes one round

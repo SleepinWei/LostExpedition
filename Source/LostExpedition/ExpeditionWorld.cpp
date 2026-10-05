@@ -1,4 +1,5 @@
 #include "ExpeditionWorld.h"
+#include "ExpeditionTower.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 
@@ -114,6 +115,7 @@ void AExpeditionWorld::RebuildScene() {
     for(int I=0;I<28;I++) {
         float X=R.FRandRange(-2400,10100);if(X>3850&&X<5150)continue;
         float Y=(I%2?1:-1)*R.FRandRange(1450,1900);float H=R.FRandRange(450,1100);
+        if(X>6200&&X<6860&&Y<0)continue; // Keep the watchtower causeway clear.
         float Top=X<0?0:X<1500?350:X<7800?650:850;
         Scan(TEXT("ScannedButtressRock"),RockMesh,FVector(X,Y,Top-H*.6),FVector(H*1.1,H*.9,H),FRotator(0,R.FRandRange(0,360),0));
     }
@@ -202,6 +204,88 @@ void AExpeditionWorld::RebuildScene() {
         float H=R.FRandRange(110,320);
         Block(TEXT("TowerBrokenCrown"),Tower+FVector(-350+I*88,350,2110+H*.5),FVector(85,160,H));
     }
+    // Offshore watchtower: a complete collision route spirals around five masonry storeys.
+    const FVector Watch=ExpeditionTower::Base;
+    Scan(TEXT("WatchtowerCliffCore"),TEXT("/Game/Coastal/Meshes/SM_CliffCore.SM_CliffCore"),Watch-FVector(0,0,1620),FVector(2240,2240,3200),FRotator::ZeroRotator);
+    for(int I=0;I<6;I++) {
+        float Angle=I*PI/3;
+        Scan(TEXT("WatchtowerFoundationRock"),RockMesh,Watch+FVector(FMath::Cos(Angle)*940,FMath::Sin(Angle)*940,-1450),FVector(1120,1050,2700),FRotator(0,I*60,0));
+    }
+    Route(TEXT("WatchtowerBase"),Watch-FVector(0,0,40),FVector(2200,2200,80));
+    // Existing break in the south courtyard wall leads to this level timber causeway.
+    for(int I=0;I<12;I++) {
+        float Y=-1200-I*100;
+        Shape(TEXT("WatchCausewayPlank"),TEXT("Cube"),FVector(6530,Y,610),FVector(380,98,20),Wood);
+        if(I%3==0)for(int Side:{-1,1})Beam(TEXT("WatchCausewayPost"),FVector(6530+Side*190,Y,570),FVector(6530+Side*190,Y,710),12);
+        if(I<11)for(int Side:{-1,1})Beam(TEXT("WatchCausewayRope"),FVector(6530+Side*190,Y,710),FVector(6530+Side*190,Y-100,710),4);
+    }
+    for(int L=0;L<5;L++) {
+        float Z=Watch.Z+L*840;
+        // Pier and lintel construction leaves open windows instead of painted black rectangles.
+        for(int Side:{-1,1}) {
+            for(int Corner:{-1,1}) {
+                Block(TEXT("WatchtowerCorner"),Watch+FVector(Side*480,Corner*480,L*840+420),FVector(240,240,840));
+                for(int Q=0;Q<6;Q++)Trim(TEXT("WatchtowerQuoin"),Watch+FVector(Side*493,Corner*493,L*840+Q*140+68),FVector(222,222,130));
+            }
+            for(int Axis=0;Axis<2;Axis++) {
+                auto Face=[&](float Along,float Height){return FVector(Watch.X+(Axis?Along:Side*540),Watch.Y+(Axis?Side*540:Along),Z+Height);};
+                auto Size=[&](float Width,float Height){return Axis?FVector(Width,120,Height):FVector(120,Width,Height);};
+                for(int J:{-1,1})Block(TEXT("WatchtowerWindowPier"),Face(J*290,420),Size(220,840));
+                Block(TEXT("WatchtowerWindowSill"),Face(0,150),Size(360,300));
+                Block(TEXT("WatchtowerWindowLintel"),Face(0,745),Size(360,190));
+                for(int A=0;A<9;A++) {
+                    const float Angle=(A+.5f)*PI/9.f;
+                    const FRotator Rotation=Axis?FRotator(90-FMath::RadiansToDegrees(Angle),0,0):FRotator(0,0,FMath::RadiansToDegrees(Angle)-90);
+                    Shape(TEXT("WatchtowerWindowArch"),TEXT("Cube"),Face(180*FMath::Cos(Angle),490+180*FMath::Sin(Angle)),Axis?FVector(64,145,85):FVector(145,64,85),Chalk,Rotation,false);
+                }
+                Block(TEXT("WatchtowerPlaster"),Face(Side*285,435)+FVector(Axis?0:Side*64,Axis?Side*64:0,0),Axis?FVector(175,8,510):FVector(8,175,510),FRotator::ZeroRotator,false);
+            }
+        }
+        Block(TEXT("WatchtowerInteriorFloor"),Watch+FVector(0,0,L*840-25),FVector(1100,1100,50));
+        for(int Side:{-1,1}) {
+            Trim(TEXT("WatchtowerBelt"),Watch+FVector(Side*580,0,L*840+810),FVector(85,1190,50));
+            Trim(TEXT("WatchtowerBelt"),Watch+FVector(0,Side*580,L*840+810),FVector(1100,85,50));
+        }
+    }
+    for(int I=1;I<=ExpeditionTower::Steps;I++) {
+        const FVector P=ExpeditionTower::Terrace(I),D=ExpeditionTower::Direction(I);
+        const bool Timber=I%4==2||I%4==3;
+        // A 200 cm riser gives the existing wall/top traces a reachable, unambiguous lip.
+        auto* Collision=Shape(FString::Printf(TEXT("WatchLedge%02d"),I),TEXT("Cube"),P-FVector(0,0,100),FVector(400,400,200),Timber?Wood:Stone,FRotator::ZeroRotator,true,true);
+        Collision->SetVisibility(false);
+        if(Timber) {
+            for(int Plank=0;Plank<8;Plank++)Shape(TEXT("WatchBalconyBoard"),TEXT("Cube"),P+FVector(-175+Plank*50,0,-14),FVector(48,400,28),Wood,FRotator::ZeroRotator,false);
+            Shape(TEXT("WatchGripFascia"),TEXT("Cube"),P-D*190-FVector(0,0,40),FVector(D.X!=0?20:400,D.Y!=0?20:400,80),Wood,FRotator::ZeroRotator,false);
+            for(int Side:{-1,1})Beam(TEXT("WatchBalconyJoist"),P+FVector(Side*150,-195,-45),P+FVector(Side*150,195,-45),28);
+        } else {
+            Shape(TEXT("WatchtowerClimbCornice"),TEXT("Cube"),P-FVector(0,0,40),FVector(400,400,80),Stone,FRotator::ZeroRotator,false);
+            Shape(TEXT("WatchtowerCorniceMoulding"),TEXT("Cube"),P-FVector(0,0,65),FVector(380,380,50),Chalk,FRotator::ZeroRotator,false);
+        }
+        Shape(TEXT("WatchLimestoneLip"),TEXT("Cube"),P-D*194-FVector(0,0,10),FVector(D.X!=0?14:390,D.Y!=0?14:390,20),Chalk,FRotator::ZeroRotator,false);
+        FVector Inner=P-Watch;Inner.Z=0;
+        Inner.X=FMath::Clamp(Inner.X,-580.f,580.f);Inner.Y=FMath::Clamp(Inner.Y,-580.f,580.f);
+        const FVector Tangent=FVector::CrossProduct(FVector::UpVector,D);
+        for(int Side:{-1,1})Beam(TEXT("WatchScaffoldBrace"),Watch+Inner+Tangent*Side*125+FVector(0,0,I*200-330),P+Tangent*Side*125-FVector(0,0,50),25);
+    }
+    const float Summit=ExpeditionTower::SummitZ();
+    Block(TEXT("WatchtowerSummitPaving"),FVector(Watch.X,Watch.Y,Summit-40),FVector(1200,1200,80));
+    for(int Side:{-1,1}) {
+        Block(TEXT("WatchtowerSummitWall"),FVector(Watch.X+Side*575,Watch.Y,Summit+48),FVector(50,1200,96));
+        if(Side==1)Block(TEXT("WatchtowerSummitWall"),FVector(Watch.X,Watch.Y+575,Summit+48),FVector(1100,50,96));
+    }
+    // South-west entrance stays open to the last external terrace.
+    Block(TEXT("WatchtowerSummitWall"),FVector(Watch.X+200,Watch.Y-575,Summit+48),FVector(750,50,96));
+    for(int I=0;I<5;I++)for(int Side:{-1,1}) {
+        if(Side==-1&&I<2)continue;
+        Block(TEXT("WatchtowerMerlon"),FVector(Watch.X-470+I*235,Watch.Y+Side*570,Summit+135),FVector(95,100,80));
+    }
+    // A broken roof frame preserves the tower silhouette above the observation deck.
+    for(int Side:{-1,1}) {
+        Block(TEXT("WatchtowerCrownPier"),FVector(Watch.X+Side*470,Watch.Y+390,Summit+310),FVector(140,145,620));
+        Trim(TEXT("WatchtowerCrownCapital"),FVector(Watch.X+Side*470,Watch.Y+390,Summit+610),FVector(190,190,60));
+    }
+    Beam(TEXT("WatchtowerCrossbeam"),FVector(Watch.X-500,Watch.Y+390,Summit+625),FVector(Watch.X+500,Watch.Y+390,Summit+625),38);
+    for(int I=0;I<9;I++)Asset(TEXT("WatchtowerFern"),FernMesh,Watch+FVector(620,I%2?350:-350,90+I*410),R.FRandRange(40,60),FRotator(0,I*43,0));
     // Abandoned storage bay on the approach, partly collapsed into the sea.
     for(int I=0;I<6;I++) {
         float H=I<3?R.FRandRange(330,520):R.FRandRange(100,230);

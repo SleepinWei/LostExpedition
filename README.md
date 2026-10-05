@@ -20,6 +20,18 @@ python3 Scripts/restore_engine_assets.py --engine "/Users/Shared/Epic Games/UE_5
 - 双击 `Scripts/Play.command` 可以直接进入窗口游戏。
 - 首次打开可能需要等待着色器编译。窗口内点击一次以捕获鼠标；编辑器中 Shift+F1 释放鼠标，Esc 停止 Play。
 
+## 海岬高塔
+
+![高塔全景](Docs/tower-overview.png)
+
+从庭院南侧围墙缺口沿木栈道前往高塔。也可双击 `Scripts/PlayTower.command`，直接在塔下进入游戏；这个入口不会清除存档。
+
+- 塔顶观景平台比入口高 **42 米**；外侧 **21 段**连续石台与木平台，每段抬高 2 米。
+- 面向浅色边沿，按 **E** 抓边、**Space** 翻上；也可在平台前直接按 Space。转角先走到落脚平台，再面向下一段。A/D 可悬挂横移，左 Ctrl 松手。
+- 入口、16 米、32 米和塔顶设检查点，靠近按 E 保存、回复生命。途中坠海后返回最近保存的位置。
+- 塔顶有补给和观景平台，HUD 显示攀爬高度。原有三件宝物和出口流程继续保留。
+- 高塔属于可玩的原型：攀爬使用现有位置状态机，尚无专用攀爬动画和手脚 IK。
+
 ## 操作
 
 | 操作 | 按键 |
@@ -77,8 +89,12 @@ python3 Scripts/restore_engine_assets.py --engine "/Users/Shared/Epic Games/UE_5
 
 ## 开发与验证
 
-已在本机 UE 5.8.3 / Mac Development 完成编译，在更新后的真实游戏世界中通过 39 项自动检查（0 失败），涵盖官方树木和免费草丛实际放置、PBR 材质应用、三级攀爬、横移、翻越阻挡、桥面支撑、台阶通行、官方武器切换、命中、换弹、补给、任务条件和存档往返。
+已在本机 UE 5.8.3 / Mac Development 完成编译，在更新后的真实游戏世界中通过 64 项自动检查（0 失败），涵盖官方树木和免费草丛实际放置、PBR 材质应用、三级攀爬、横移、翻越阻挡、桥面支撑、台阶通行、官方武器切换、命中、换弹、补给、任务条件和存档往返；新增从庭院到塔顶的连续胶囊扫描、21 段实际抓边与翻越、塔顶交互及四处检查点支撑检查。
 
 双击 `Scripts/Build.command` 编译编辑器模块；双击 `Scripts/SmokeTest.command` 运行真实 UE 游戏世界中的自动检查。测试使用独立临时存档槽，不会覆盖检查点存档。
 
-场景复核视角位于 `Docs/scene-preview.png`、`Docs/courtyard-preview.png`、`Docs/cliff-overview.png` 和 `Docs/landing-preview.png`。可用 `-AdventureVisualReview` 启动游戏生成 `Docs/gameplay-preview.png`，该验证模式会临时关闭守卫攻击并在截图后退出；正常启动不受影响。
+高塔复核截图为 `Docs/tower-overview.png`、`Docs/tower-route.png` 和 `Docs/tower-summit.png`。在编辑器启动命令中增加 `-AdventureCapture -TowerCaptureOnly -AdventureCaptureExit`，并执行 `Scripts/editor_view.py`，可重新渲染。
+
+`-WatchtowerVisualReview` 会在真实游戏中进入高塔抓边状态，生成 `Docs/tower-gameplay.png` 后退出，用于复核角色尺度与 HUD；正常游玩请使用 `Scripts/PlayTower.command`。
+
+原场景复核视角位于 `Docs/scene-preview.png`、`Docs/courtyard-preview.png`、`Docs/cliff-overview.png` 和 `Docs/landing-preview.png`。可用 `-AdventureVisualReview` 启动游戏生成 `Docs/gameplay-preview.png`，该验证模式会临时关闭守卫攻击并在截图后退出；正常启动不受影响。

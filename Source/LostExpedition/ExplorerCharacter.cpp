@@ -46,7 +46,7 @@ void AExplorerCharacter::BeginPlay() {
     }
     for(TActorIterator<AExpeditionLoot> It(GetWorld());It;++It) if(Collected.Contains(It->ItemId)||(It->Kind==ELootKind::Gate&&bGateOpen)) {It->bUsed=true;It->SetActorHiddenInGame(true);It->SetActorEnableCollision(false);}
     if(auto* PC=Cast<APlayerController>(GetController())){PC->SetControlRotation(FRotator(-8,0,0));PC->SetInputMode(FInputModeGameOnly());PC->bShowMouseCursor=false;}
-    Notify(TEXT("CLIFF SANCTUARY  /  Follow the gold-marked ledges"));
+    Notify(TEXT("CLIFF SANCTUARY  /  Follow the pale limestone ledges"));
 }
 void AExplorerCharacter::SetupPlayerInputComponent(UInputComponent* I) {
     Super::SetupPlayerInputComponent(I);

@@ -2,6 +2,9 @@
 import unreal
 from pathlib import Path
 views=[
+ ('tower-overview',(2300,-9500,4400),(7330,-3000,2540)),
+ ('tower-route',(5900,-4800,2620),(7060,-3330,2740)),
+ ('tower-summit',(6730,-4300,5460),(7380,-2760,4930)),
  ('scene-preview',(3400,40,915),(8400,200,1510)),
  ('courtyard-preview',(5690,-770,850),(8300,360,1640)),
  ('cliff-overview',(2600,-5500,2200),(6640,250,450)),
@@ -15,6 +18,7 @@ def view(v):
 unreal.get_editor_subsystem(unreal.LevelEditorSubsystem).editor_set_game_view(True)
 view(views[0])
 unreal.log('COASTAL_REMAKE_EDITOR_READY')
+if 'TowerCaptureOnly' in unreal.SystemLibrary.get_command_line(): views=views[:3]
 if 'AdventureCapture' in unreal.SystemLibrary.get_command_line():
     state={'elapsed':0.,'index':0,'captured':False}
     def tick(delta):

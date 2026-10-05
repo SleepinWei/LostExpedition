@@ -1,6 +1,7 @@
 #include "ExplorerCharacter.h"
 #include "ExpeditionActors.h"
 #include "ExpeditionWorld.h"
+#include "ExpeditionTower.h"
 #include "Camera/CameraComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
@@ -48,6 +49,42 @@ void AExplorerCharacter::RunSmokeTest() {
             Check(Traversal==ETraversalState::Walking&&FMath::Abs(GetActorLocation().Z-(Top[Step]+99))<3,FString::Printf(TEXT("Complete collision-safe mantle %d"),Step+1));
         }
     }
+    // Walk between every riser with capsule sweeps, then use the real grab/mantle state machine.
+    // There is only one initial teleport; the entire tower route must connect from there.
+    Traversal=ETraversalState::Walking;LedgeCooldown=0;Right(0);
+    SetActorLocation(FVector(6530,-1090,719));GetCharacterMovement()->SetMovementMode(MOVE_Walking);
+    auto WalkTo=[&](FVector Target){
+        const FVector Start=GetActorLocation();const int32 Samples=FMath::CeilToInt(FVector::Dist(Start,Target)/20.f);
+        for(int32 I=1;I<=Samples;I++) {
+            FHitResult Hit;SetActorLocation(FMath::Lerp(Start,Target,float(I)/Samples),true,&Hit);
+            if(Hit.bBlockingHit)return false;
+            FHitResult Floor;FCollisionQueryParams Query;Query.AddIgnoredActor(this);
+            if(!GetWorld()->LineTraceSingleByChannel(Floor,GetActorLocation(),GetActorLocation()-FVector(0,0,115),ECC_Visibility,Query))return false;
+        }
+        return GetActorLocation().Equals(Target,2.f);
+    };
+    Check(WalkTo(ExpeditionTower::Terrace(0)+FVector(0,0,99)),TEXT("Walk from courtyard through wall gap onto tower approach"));
+    bool TowerRoute=true;
+    for(int32 Stage=1;Stage<=ExpeditionTower::Steps;Stage++) {
+        const FVector Top=ExpeditionTower::Terrace(Stage),D=ExpeditionTower::Direction(Stage);
+        const FVector PreviousTop=ExpeditionTower::Terrace(Stage-1);
+        bool Walked=WalkTo(PreviousTop+FVector(0,0,99))&&WalkTo(Top-D*280-FVector(0,0,101));
+        SetActorRotation(D.Rotation());LedgeCooldown=0;GetCharacterMovement()->SetMovementMode(MOVE_Walking);
+        bool Grabbed=Walked&&BeginHang();bool Mantled=Grabbed&&BeginMantle();
+        if(Mantled)for(int32 I=0;I<45;I++)Tick(.016f);
+        bool Finished=Mantled&&Traversal==ETraversalState::Walking&&FMath::Abs(GetActorLocation().Z-(Top.Z+99))<3;
+        Check(Finished,FString::Printf(TEXT("Tower continuous approach, grab and mantle %02d / 21"),Stage));
+        if(!Finished){TowerRoute=false;break;}
+    }
+    bool SummitWalk=TowerRoute&&WalkTo(ExpeditionTower::Terrace(21)+FVector(0,0,99))&&WalkTo(FVector(6930,-3400,4919))&&WalkTo(FVector(7330,-3000,4919));
+    Check(SummitWalk&&FMath::Abs(GetActorLocation().Z-4919)<3,TEXT("Reach the open summit deck 42 metres above the entrance"));
+    RefreshLoot();Check(SummitWalk&&Nearby.IsValid()&&Nearby->ItemId==TEXT("TowerSummitCheckpoint"),TEXT("Summit checkpoint is visible and interactable"));
+    int32 TowerCheckpoints=0;
+    for(TActorIterator<AExpeditionLoot> It(GetWorld());It;++It)if(It->Kind==ELootKind::Checkpoint&&It->ItemId.ToString().StartsWith(TEXT("Tower"))) {
+        FHitResult Floor;FCollisionQueryParams Query;Query.AddIgnoredActor(this);Query.AddIgnoredActor(*It);
+        if(GetWorld()->LineTraceSingleByChannel(Floor,It->GetActorLocation(),It->GetActorLocation()-FVector(0,0,80),ECC_Visibility,Query)&&Floor.ImpactNormal.Z>.9)TowerCheckpoints++;
+    }
+    Check(TowerCheckpoints==4,TEXT("All four tower checkpoints stand on collision-supported landings"));
     SetActorLocation(FVector(-90,0,288));SetActorRotation(FRotator::ZeroRotator);LedgeCooldown=0;Traversal=ETraversalState::Walking;BeginHang();
     auto* Obstacle=GetWorld()->SpawnActor<AActor>();
     auto* Box=NewObject<UBoxComponent>(Obstacle);Obstacle->SetRootComponent(Box);Box->SetBoxExtent(FVector(100));Box->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);Box->SetCollisionResponseToAllChannels(ECR_Block);Box->RegisterComponent();Obstacle->SetActorLocation(FVector(75,0,499));
