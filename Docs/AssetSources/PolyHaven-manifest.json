@@ -1,0 +1,122 @@
+{
+  "license": "CC0",
+  "licenseURL": "https://polyhaven.com/license",
+  "textures": [
+    {
+      "id": "grass_ground",
+      "source": "https://polyhaven.com/a/grass_ground",
+      "files": {
+        "Diffuse": "grass_ground/grass_ground_diff_1k.jpg",
+        "nor_dx": "grass_ground/grass_ground_nor_dx_1k.jpg",
+        "Rough": "grass_ground/grass_ground_rough_1k.jpg"
+      }
+    },
+    {
+      "id": "forest_ground_04",
+      "source": "https://polyhaven.com/a/forest_ground_04",
+      "files": {
+        "Diffuse": "forest_ground_04/forest_ground_04_diff_1k.jpg",
+        "nor_dx": "forest_ground_04/forest_ground_04_nor_dx_1k.jpg",
+        "Rough": "forest_ground_04/forest_ground_04_rough_1k.jpg"
+      }
+    },
+    {
+      "id": "clay_roof_tiles",
+      "source": "https://polyhaven.com/a/clay_roof_tiles",
+      "files": {
+        "Diffuse": "clay_roof_tiles/clay_roof_tiles_diff_1k.jpg",
+        "nor_dx": "clay_roof_tiles/clay_roof_tiles_nor_dx_1k.jpg",
+        "Rough": "clay_roof_tiles/clay_roof_tiles_rough_1k.jpg"
+      }
+    },
+    {
+      "id": "plastered_wall_02",
+      "source": "https://polyhaven.com/a/plastered_wall_02",
+      "files": {
+        "Diffuse": "plastered_wall_02/plastered_wall_02_diff_1k.jpg",
+        "nor_dx": "plastered_wall_02/plastered_wall_02_nor_dx_1k.jpg",
+        "Rough": "plastered_wall_02/plastered_wall_02_rough_1k.jpg"
+      }
+    },
+    {
+      "id": "wood_planks",
+      "source": "https://polyhaven.com/a/wood_planks",
+      "files": {
+        "Diffuse": "wood_planks/wood_planks_diff_1k.jpg",
+        "nor_dx": "wood_planks/wood_planks_nor_dx_1k.jpg",
+        "Rough": "wood_planks/wood_planks_rough_1k.jpg"
+      }
+    },
+    {
+      "id": "rocky_terrain",
+      "source": "https://polyhaven.com/a/rocky_terrain",
+      "files": {
+        "Diffuse": "rocky_terrain/rocky_terrain_diff_1k.jpg",
+        "nor_dx": "rocky_terrain/rocky_terrain_nor_dx_1k.jpg",
+        "Rough": "rocky_terrain/rocky_terrain_rough_1k.jpg"
+      }
+    },
+    {
+      "id": "cobblestone_floor_01",
+      "source": "https://polyhaven.com/a/cobblestone_floor_01",
+      "files": {
+        "Diffuse": "cobblestone_floor_01/cobblestone_floor_01_diff_1k.jpg",
+        "nor_dx": "cobblestone_floor_01/cobblestone_floor_01_nor_dx_1k.jpg",
+        "Rough": "cobblestone_floor_01/cobblestone_floor_01_rough_1k.jpg"
+      }
+    },
+    {
+      "id": "pine_bark",
+      "source": "https://polyhaven.com/a/pine_bark",
+      "files": {
+        "Diffuse": "pine_bark/pine_bark_diff_1k.jpg",
+        "nor_dx": "pine_bark/pine_bark_nor_dx_1k.jpg",
+        "Rough": "pine_bark/pine_bark_rough_1k.jpg"
+      }
+    }
+  ],
+  "models": [
+    {
+      "id": "pine_sapling_small",
+      "source": "https://polyhaven.com/a/pine_sapling_small",
+      "file": "pine_sapling_small/pine_sapling_small.fbx",
+      "textures": {
+        "twig_nor_dx": "pine_sapling_small/textures/pine_sapling_small_twig_nor_dx_1k.png",
+        "bark_diff": "pine_sapling_small/textures/pine_sapling_small_bark_diff_1k.png",
+        "bark_nor_dx": "pine_sapling_small/textures/pine_sapling_small_bark_nor_dx_1k.png",
+        "twig_diff": "pine_sapling_small/textures/pine_sapling_small_twig_diff_1k.png",
+        "twig_rough": "pine_sapling_small/textures/pine_sapling_small_twig_rough_1k.png",
+        "bark_rough": "pine_sapling_small/textures/pine_sapling_small_bark_rough_1k.png",
+        "twig_alpha": "pine_sapling_small/textures/pine_sapling_small_twig_alpha_1k.png"
+      }
+    },
+    {
+      "id": "island_tree_01",
+      "source": "https://polyhaven.com/a/island_tree_01",
+      "file": "island_tree_01/island_tree_01.fbx",
+      "textures": {
+        "branches_diff": "island_tree_01/textures/island_tree_01_branches_diff_1k.png",
+        "branches_nor_dx": "island_tree_01/textures/island_tree_01_branches_nor_dx_1k.png",
+        "branches_rough": "island_tree_01/textures/island_tree_01_branches_rough_1k.png",
+        "Diffuse": "island_tree_01/textures/island_tree_01_diff_1k.png",
+        "leaves_alpha": "island_tree_01/textures/island_tree_01_leaves_alpha_1k.png",
+        "leaves_diff": "island_tree_01/textures/island_tree_01_leaves_diff_1k.png",
+        "leaves_nor_dx": "island_tree_01/textures/island_tree_01_leaves_nor_dx_1k.png",
+        "leaves_rough": "island_tree_01/textures/island_tree_01_leaves_rough_1k.png",
+        "nor_dx": "island_tree_01/textures/island_tree_01_nor_dx_1k.png",
+        "Rough": "island_tree_01/textures/island_tree_01_rough_1k.png"
+      }
+    },
+    {
+      "id": "grass_medium_01",
+      "source": "https://polyhaven.com/a/grass_medium_01",
+      "file": "grass_medium_01/grass_medium_01.fbx",
+      "textures": {
+        "Diffuse": "grass_medium_01/textures/grass_medium_01_diff_1k.png",
+        "dry_diff": "grass_medium_01/textures/grass_medium_01_dry_diff_1k.png",
+        "nor_dx": "grass_medium_01/textures/grass_medium_01_nor_dx_1k.png",
+        "Rough": "grass_medium_01/textures/grass_medium_01_rough_1k.png"
+      }
+    }
+  ]
+}

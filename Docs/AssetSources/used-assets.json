@@ -1,0 +1,123 @@
+{
+  "official_ue_resources": [
+    {
+      "name": "UE 5.8 official template weapons",
+      "source": "Templates/TemplateResources/Standard/Weapons/Content",
+      "destination": "/Game/Weapons",
+      "used": [
+        "Pistol/Meshes/SM_Pistol",
+        "Rifle/Meshes/SM_Rifle"
+      ]
+    },
+    {
+      "name": "UE 5.8 ArchVis sample tree",
+      "source": "Templates/TemplateResources/Standard/ArchVis/Content/SampleScene/Tree",
+      "destination": "/Game/ArchVis/SampleScene/Tree",
+      "used": [
+        "HillTree_02"
+      ]
+    }
+  ],
+  "existing_free_resources": [
+    {
+      "name": "Poly Haven island_tree_01",
+      "source": "https://polyhaven.com/a/island_tree_01",
+      "license": "CC0",
+      "used": "/Game/Nature/SM_TownTree"
+    },
+    {
+      "name": "Poly Haven grass_medium_01",
+      "source": "https://polyhaven.com/a/grass_medium_01",
+      "license": "CC0",
+      "used": "/Game/Nature/SM_TownGrass"
+    },
+    {
+      "name": "Poly Haven cobblestone_floor_01",
+      "source": "https://polyhaven.com/a/cobblestone_floor_01",
+      "license": "CC0",
+      "used": "/Game/Materials/M_ExpeditionStone"
+    },
+    {
+      "name": "Poly Haven rocky_terrain",
+      "source": "https://polyhaven.com/a/rocky_terrain",
+      "license": "CC0",
+      "used": "/Game/Materials/M_ExpeditionRock"
+    },
+    {
+      "name": "Poly Haven wood_planks",
+      "source": "https://polyhaven.com/a/wood_planks",
+      "license": "CC0",
+      "used": "/Game/Materials/M_ExpeditionWood"
+    }
+  ],
+  "integration": "Official UE templates plus locally cached and newly downloaded Poly Haven CC0 assets. New downloads are hash-checked against the official API; original manifests are in ArtSource/CoastalRemake.",
+  "fab_downloads_added": [],
+  "coastal_remake_downloads": [
+    {
+      "id": "coastal_cliff_02",
+      "source": "https://polyhaven.com/a/coastal_cliff_02",
+      "license": "CC0",
+      "textures": "2K",
+      "used": "/Game/Coastal"
+    },
+    {
+      "id": "rock_07",
+      "source": "https://polyhaven.com/a/rock_07",
+      "license": "CC0",
+      "textures": "2K",
+      "used": "/Game/Coastal"
+    },
+    {
+      "id": "fern_02",
+      "source": "https://polyhaven.com/a/fern_02",
+      "license": "CC0",
+      "textures": "2K",
+      "used": "/Game/Coastal"
+    },
+    {
+      "id": "wooden_crate_02",
+      "source": "https://polyhaven.com/a/wooden_crate_02",
+      "license": "CC0",
+      "textures": "2K",
+      "used": "/Game/Coastal"
+    },
+    {
+      "id": "old_stone_wall_02",
+      "source": "https://polyhaven.com/a/old_stone_wall_02",
+      "license": "CC0",
+      "textures": "2K",
+      "used": "/Game/Coastal"
+    },
+    {
+      "id": "rock_face",
+      "source": "https://polyhaven.com/a/rock_face",
+      "license": "CC0",
+      "textures": "2K",
+      "used": "/Game/Coastal"
+    },
+    {
+      "id": "aerial_grass_rock",
+      "source": "https://polyhaven.com/a/aerial_grass_rock",
+      "license": "CC0",
+      "textures": "2K",
+      "used": "/Game/Coastal"
+    },
+    {
+      "id": "worn_mossy_plasterwall",
+      "source": "https://polyhaven.com/a/worn_mossy_plasterwall",
+      "license": "CC0",
+      "textures": "2K",
+      "used": "/Game/Coastal"
+    }
+  ],
+  "authored_remake_geometry": [
+    "ArtSource/CoastalRemake/weathered_block.obj",
+    "ArtSource/CoastalRemake/cliff_core.obj"
+  ],
+  "visual_review_cameras": [
+    "Docs/scene-preview.png",
+    "Docs/courtyard-preview.png",
+    "Docs/cliff-overview.png",
+    "Docs/landing-preview.png"
+  ]
+}

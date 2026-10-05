@@ -1,0 +1,27 @@
+Binaries/
+Intermediate/
+Saved/
+DerivedDataCache/
+.vscode/
+*.xcworkspace
+*.xcodeproj
+.DS_Store
+__pycache__/
+
+# Local engine template content is restored from the installed UE distribution.
+/Content/Characters/
+/Content/Weapons/
+/Content/ArchVis/
+# Regenerable downloads, editor backups and machine-specific diagnostics.
+/ArtSource/CoastalRemake/*/
+/ArtSource/CoastalRemake/*-files.json
+/ArtSource/CoastalRemake/import-report.json
+/Docs/Backups/
+/Docs/*.log
+/Docs/*inspection*
+*.log
+.env
+.env.*
+*.pem
+*.key
+/Docs/*-inspect.*

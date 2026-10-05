@@ -1,0 +1,42 @@
+Lost Expedition runtime smoke test
+39 checks; 0 failures
+
+PASS: Authored ruins and foliage generated
+PASS: Official UE tree integrated in inland slope
+PASS: Textured free grass replaces placeholder foliage
+PASS: PBR stone material applied to ruins
+PASS: Exactly one environment actor
+PASS: Suspension bridge supports character-sized collision
+PASS: Sanctuary stairs remain within character step height
+PASS: Grab ledge 1
+PASS: Start mantle 1
+PASS: Complete collision-safe mantle 1
+PASS: Grab ledge 2
+PASS: Shimmy along ledge
+PASS: Start mantle 2
+PASS: Complete collision-safe mantle 2
+PASS: Grab ledge 3
+PASS: Start mantle 3
+PASS: Complete collision-safe mantle 3
+PASS: Blocked mantle rejected
+PASS: Drop releases ledge
+PASS: Fire consumes one round
+PASS: Hitscan damages skeletal guard
+PASS: Fire rate enforced
+PASS: Reload clamps to available reserve
+PASS: Empty reserve rejects reload
+PASS: Weapon swap uses official rifle mesh
+PASS: Pistol selection uses official pistol mesh
+PASS: Medkit heals and is consumed
+PASS: No free healing with empty inventory
+PASS: Gate rejects missing key
+PASS: Key pickup tracked
+PASS: Key opens gate
+PASS: Relic cannot be collected twice
+PASS: Ammo supply replenishes inventory
+PASS: Full inventory leaves supply available
+PASS: Exit requires three relics
+PASS: Complete expedition
+PASS: Checkpoint save roundtrip
+PASS: Death returns to checkpoint
+PASS: Grenade applies radial damage
