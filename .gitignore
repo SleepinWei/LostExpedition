@@ -8,6 +8,22 @@ DerivedDataCache/
 .DS_Store
 __pycache__/
 
+# Public repository contains source, configuration and asset links only.
+/Content/
+/Docs/*.png
+*.uasset
+*.umap
+*.fbx
+*.blend
+*.png
+*.jpg
+*.jpeg
+*.tga
+*.exr
+*.hdr
+*.zip
+*.7z
+
 # Local engine template content is restored from the installed UE distribution.
 /Content/Characters/
 /Content/Weapons/

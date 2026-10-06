@@ -4,15 +4,17 @@ UE 5.8.3 原生 C++ 第三人称冒险原型。参考《神秘海域4》海岛�
 
 ## 从公开仓库克隆
 
-仓库包含 C++ 源码、关卡、自制模型和已导入的 CC0 环境素材。UE 官方模板模型、动画和武器不随仓库分发；从自己的 UE 5.8 安装目录补齐：
+这是**源码仓库**，包含 C++、项目配置、场景生成/素材导入脚本、测试报告和少量自制 OBJ 几何源文件。模型、贴图、Unreal 二进制资源、地图和截图不上传 Git；素材下载链接、目标路径和恢复步骤见 [素材与恢复说明](Docs/ASSETS.md)。
+
+新克隆需要先补齐素材并生成地图，才能运行游戏。已有本地项目中的素材继续保留。UE 官方模板资源从自己的 UE 5.8 安装目录补齐：
 
 ```sh
 python3 Scripts/restore_engine_assets.py --engine "/Users/Shared/Epic Games/UE_5.8"
 ```
 
-随后运行 `Scripts/Build.command` 编译，再打开项目。其他系统可在 `--engine` 指定 UE 5.8 安装目录，并通过 Unreal 的项目文件生成器及对应 C++ 工具链构建。Mac 启动脚本默认使用上述引擎路径。
+随后运行 `Scripts/Build.command` 编译，再按 [恢复步骤](Docs/ASSETS.md#恢复步骤) 下载、导入环境素材并生成地图。其他系统可在 `--engine` 指定 UE 5.8 安装目录，并通过 Unreal 的项目文件生成器及对应 C++ 工具链构建。Mac 启动脚本默认使用上述引擎路径。
 
-仓库不包含编译产物、缓存、个人存档和重复下载的源素材。CC0 素材来源见 `Docs/AssetSources/used-assets.json`；UE 模板资源的使用遵循其自身条款。
+仓库也不包含编译产物、缓存和个人存档。机器可读来源清单见 `Docs/AssetSources/used-assets.json`；UE 模板资源的使用遵循其自身条款。
 
 ## 启动
 
@@ -22,7 +24,7 @@ python3 Scripts/restore_engine_assets.py --engine "/Users/Shared/Epic Games/UE_5
 
 ## 海岬高塔
 
-![高塔全景](Docs/tower-overview.png)
+本机预览图：`Docs/tower-overview.png`。截图不随源码上传，可用文末的复核命令重新生成。
 
 从庭院南侧围墙缺口沿木栈道前往高塔。也可双击 `Scripts/PlayTower.command`，直接在塔下进入游戏；这个入口不会清除存档。
 
@@ -64,7 +66,9 @@ python3 Scripts/restore_engine_assets.py --engine "/Users/Shared/Epic Games/UE_5
 - 存档：检查点保存位置、关键任务状态、已拾取物和补给数量，重新打开游戏可继续。死亡/坠海返回当前检查点，敌人状态保留到本次关卡结束；F5 重开关卡会重置守卫。
 - 界面：目标、生命、弹药、道具数量、附近交互提示、悬挂操作提示、任务信标和日志。当前游戏内 UI 使用英文，说明文档为中文。
 
-## 内容结构
+## 本地完整项目结构
+
+下面的 `Content/` 内容需在本机恢复或生成，未包含在 Git 仓库中。
 
 - `Content/Maps/CliffSanctuary.umap`：可在 Unreal 中直接打开和编辑的关卡。
 - `Content/Materials`：石材、岩体、木头、植被、海面、攀爬标记等原生 PBR 材质与材质实例。
@@ -85,7 +89,7 @@ python3 Scripts/restore_engine_assets.py --engine "/Users/Shared/Epic Games/UE_5
 - 新下载的 CC0 扫描素材：`coastal_cliff_02`、`rock_07`、`fern_02`、`wooden_crate_02`；新表面材质：`old_stone_wall_02`、`rock_face`、`aerial_grass_rock`、`worn_mossy_plasterwall`。
 - 石墙、岩体、路面和桥面分别使用不同尺度的世界坐标 PBR 材质。海面使用动态波纹法线。
 - 完整来源清单在 `Docs/AssetSources/used-assets.json`；本次未加入新下载的 Fab 商店包。
-- 原关卡与画面已备份在 `Docs/Backups`。完整重建依次运行 `Scripts/download_coastal_assets.py`（系统 Python）、`Scripts/import_coastal_assets.py` 和 `Scripts/setup_scene.py`（Unreal Python）。旧版文件保存在 `Docs/Backups/PreCoastalRemake`。
+- 本机原关卡与画面备份位于 `Docs/Backups`，不上传 Git。完整恢复需要先补齐 UE 模板和旧版植被/路面素材，再运行海岸素材下载、导入和地图生成脚本；详细顺序见 [素材与恢复说明](Docs/ASSETS.md)。
 
 ## 开发与验证
 
