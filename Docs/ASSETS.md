@@ -69,14 +69,16 @@ python3 Scripts/restore_engine_assets.py --engine "/Users/Shared/Epic Games/UE_5
 
 `restore_engine_assets.py` 已包含这些序列及其骨骼依赖。攀爬动画由 `ExplorerAnimation.cpp` 在运行时生成，不需要额外下载攀爬动作文件。压缩 GIF 是本工程实机动作捕获，源帧不上传。
 
-`Scripts/inspect_action_upgrade_assets.py` 可在 Unreal 中运行，检查本地动作长度、叠加类型、根运动设置与骨骼依赖。八方向步态按角色局部速度混合相邻方向，并使用移动距离推进公共周期；这不是 Motion Matching。
+`Scripts/inspect_action_upgrade_assets.py` 可在 Unreal 中检查本地动作长度、叠加类型、根运动设置与骨骼依赖。
 
-后续完整 Motion Matching 的免费素材来源为 [Epic Game Animation Sample](https://www.fab.com/listings/880e319a-a59e-4ed2-b268-b32dac7fa016)。本次尚未下载或迁移该示例；当前项目没有它的 Pose Search 数据库或正式攀爬动作。需要用户在 Fab 完成 Epic 登录，将免费示例加入素材库，随后通过 Epic Launcher 下载、迁移依赖并建立匹配角色骨骼的数据库。下载本身不会启用 Motion Matching；仍需按[升级计划](ACTION_SYSTEM_PLAN.zh-CN.md)接入并验证。整个示例及生成数据库继续留在本地。
+地面移动现已接入真实 Motion Matching。运行 `Scripts/SetupMotionMatching.command`，或在 Unreal 的 Python 菜单执行 `Scripts/setup_motion_matching.py`，可用上述官方模板素材生成 `/Game/Animation/MotionMatching/PSS_Explorer`、`PSD_Unarmed`、`PSD_Pistol`、`PSD_Rifle` 与 `ABP_ExplorerMotionMatching`。三个数据库共 51 个动作、2,910 个索引姿态；生成副本启用循环与根提取，原模板不修改。重启 Unreal 后角色加载新动画类。生成数据库、蓝图与动作副本全部保留本地，Git 提交 C++ 与可重现脚本。详见 [Motion Matching 接入说明](MOTION_MATCHING.md)。
+
+[Epic Game Animation Sample](https://www.fab.com/listings/880e319a-a59e-4ed2-b268-b32dac7fa016) 是后续扩充起停、急转与正式攀越动作的可选免费来源，本次尚未下载迁移。当前 Motion Matching 接入无需该示例或 Fab 登录。攀爬继续使用已有程序化接触系统，根运动 Motion Warping 尚未启用。
 
 ## 恢复步骤
 
 1. 安装 UE 5.8 与对应 C++ 工具链，恢复上面的 Unreal 官方模板资源。
-2. 编译 `LostExpeditionEditor`；Mac 可运行 `Scripts/Build.command`。首次打开可能提示默认地图尚不存在，完成下列生成步骤后即可使用。
+2. 编译 `LostExpeditionEditor`；Mac 可运行 `Scripts/Build.command`。随后运行 `Scripts/SetupMotionMatching.command` 建立动画内容并重启 Unreal。首次打开可能提示默认地图尚不存在，完成下列生成步骤后即可使用。
 3. 下载并导入“植被和路面素材”中的四项必需资源，确保目标路径与名称完全一致。
 4. 在系统终端运行 `python3 Scripts/download_coastal_assets.py`，下载海岸模型和贴图。
 5. 在 Unreal 的 **Tools → Execute Python Script** 中执行 `Scripts/import_coastal_assets.py`。等待导入、材质和 LOD 处理完成。

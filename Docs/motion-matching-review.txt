@@ -1,0 +1,29 @@
+Lost Expedition Motion Matching visual review
+UE 5.8.3 Mac, 288 requested game frames, 287 completed screenshots, 960x600
+Fixed movement and animation timestep: 1/24 s; compact preview samples every third frame (nominal 8 frames/s); unavailable frame 90 uses the nearest completed capture.
+Capture: MotionMatchingReview.command
+
+MM_VISUAL frame=0 selected=MM_Idle db=PSD_Unarmed time=7.546 cost=-0.008 speed=0.0 air=0
+MM_VISUAL frame=12 selected=MF_Unarmed_Walk_Fwd db=PSD_Unarmed time=0.767 cost=0.054 speed=100.0 air=0
+MM_VISUAL frame=24 selected=MF_Unarmed_Jog_Fwd db=PSD_Unarmed time=0.500 cost=0.033 speed=527.2 air=0
+MM_VISUAL frame=36 selected=MF_Unarmed_Jog_Fwd db=PSD_Unarmed time=0.973 cost=-0.006 speed=649.9 air=0
+MM_VISUAL frame=48 selected=MF_Unarmed_Jog_Fwd db=PSD_Unarmed time=0.909 cost=-0.005 speed=650.0 air=0
+MM_VISUAL frame=60 selected=MF_Unarmed_Jog_Fwd_Right db=PSD_Unarmed time=1.400 cost=0.358 speed=552.8 air=0
+MM_VISUAL frame=72 selected=MF_Unarmed_Walk_Fwd db=PSD_Unarmed time=0.870 cost=0.033 speed=430.1 air=0
+MM_VISUAL frame=84 selected=MF_Unarmed_Walk_Fwd db=PSD_Unarmed time=0.065 cost=0.027 speed=430.0 air=0
+MM_VISUAL frame=96 selected=MM_Idle db=PSD_Unarmed time=3.667 cost=0.075 speed=258.9 air=0
+MM_VISUAL frame=108 selected=MM_Idle db=PSD_Unarmed time=4.167 cost=-0.008 speed=0.0 air=0
+MM_VISUAL frame=120 selected=MF_Pistol_Idle_ADS db=PSD_Pistol time=5.700 cost=0.364 speed=0.0 air=0
+MM_VISUAL frame=132 selected=MF_Pistol_Walk_Right db=PSD_Pistol time=1.633 cost=0.045 speed=240.1 air=0
+MM_VISUAL frame=144 selected=MF_Pistol_Walk_Right db=PSD_Pistol time=0.147 cost=0.003 speed=240.0 air=0
+MM_VISUAL frame=156 selected=MF_Pistol_Walk_Right db=PSD_Pistol time=0.547 cost=0.002 speed=240.0 air=0
+MM_VISUAL frame=168 selected=MF_Rifle_Idle_ADS db=PSD_Rifle time=4.433 cost=0.026 speed=113.4 air=0
+MM_VISUAL frame=180 selected=MF_Rifle_Walk_Bwd db=PSD_Rifle time=0.821 cost=0.030 speed=240.0 air=0
+MM_VISUAL frame=192 selected=MF_Rifle_Walk_Bwd db=PSD_Rifle time=0.001 cost=-0.002 speed=240.0 air=0
+MM_VISUAL frame=204 selected=MF_Rifle_Walk_Bwd db=PSD_Rifle time=0.401 cost=-0.002 speed=240.0 air=0
+MM_VISUAL frame=216 selected=MF_Rifle_Idle_ADS db=PSD_Rifle time=6.367 cost=0.022 speed=113.4 air=0
+MM_VISUAL frame=228 selected=MF_Rifle_Idle_ADS db=PSD_Rifle time=6.742 cost=0.065 speed=0.0 air=1
+MM_VISUAL frame=240 selected=MF_Rifle_Idle_ADS db=PSD_Rifle time=6.742 cost=0.065 speed=0.0 air=1
+MM_VISUAL frame=252 selected=MF_Rifle_Idle_ADS db=PSD_Rifle time=6.742 cost=0.065 speed=0.0 air=1
+MM_VISUAL frame=264 selected=MM_Idle db=PSD_Unarmed time=2.733 cost=-0.008 speed=0.0 air=0
+MM_VISUAL frame=276 selected=MM_Idle db=PSD_Unarmed time=3.233 cost=-0.008 speed=0.0 air=0

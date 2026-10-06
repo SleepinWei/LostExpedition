@@ -1,10 +1,22 @@
 Lost Expedition runtime smoke test
-94 checks; 0 failures
+106 checks; 0 failures
 
 PASS: Continuous island terrain generated with collision
 PASS: Tropical palms, canopy trees and dense grass are instanced
 PASS: All tower stone handles are placed
 PASS: Exactly one island environment actor
+PASS: Character evaluates the compiled Epic Motion Matching AnimBlueprint
+PASS: All three Pose Search databases contain 17 clips and built searchable pose indexes
+PASS: Actual sprint input selects an unarmed forward jog pose
+PASS: Matching query receives recorded history and future movement samples
+PASS: Braking returns the real Motion Matching selection to idle
+PASS: Pistol aim selects a right strafe through Pose Search
+PASS: Rifle swap and reversal select the rifle backward database pose
+PASS: Animation root extraction never displaces the collision capsule
+PASS: Jump ascent blends from matched locomotion to the authored jump pose
+PASS: Jump descent evaluates the fall loop
+PASS: Ground contact blends through the authored landing pose
+PASS: Landing resumes evaluated Motion Matching with recorded selection changes
 PASS: Low sandy coast and elevated central plateau
 PASS: Walk continuously from beach through jungle trail onto the highland
 PASS: Walk from highland to the first tower handhold
@@ -78,7 +90,7 @@ PASS: Rifle selection starts the official equip action
 PASS: Rifle aiming animation keeps the barrel aligned with the camera
 PASS: Upper-body firearm animation preserves the locomotion foot pose
 PASS: Both weapons load eight official walk and jog directions
-PASS: Moving aim selects distinct strafe and backward foot poses
+PASS: Moving aim evaluates distinct strafe and backward foot motion over a cycle
 PASS: Automatic rifle fire repeatedly triggers the rifle recoil animation
 PASS: Rifle recoil retrigger preserves the outgoing arm pose before crossfading
 PASS: Pistol selection uses official pistol mesh
@@ -97,3 +109,9 @@ PASS: Death returns to checkpoint
 PASS: Grenade applies radial damage
 
 Fixed-step contact metrics: support hand 0.000 cm; planted foot 0.000 cm; 30/120 Hz body path difference 0.000 cm.
+
+Evaluated Motion Matching selections:
+PSD_Unarmed / MF_Unarmed_Jog_Fwd @ 0.736 s; cost -0.000; speed 650.0; requested PSD_Unarmed
+PSD_Unarmed / MM_Idle @ 3.133 s; cost -0.008; speed 0.0; requested PSD_Unarmed
+PSD_Pistol / MF_Pistol_Walk_Right @ 0.527 s; cost 0.003; speed 240.0; requested PSD_Pistol
+PSD_Rifle / MF_Rifle_Walk_Bwd @ 1.091 s; cost -0.001; speed 240.0; requested PSD_Rifle

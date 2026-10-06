@@ -30,11 +30,15 @@ Climbing includes a grab transition, alternating hand and foot reaches, weight s
 
 ![Animated climbing: upward reach, sideways traverse, rooftop mantle, and descent](Docs/Images/climbing-animation.gif)
 
-Pistol and rifle fire use the official UE mannequin animation sequences, blended into the upper body over the existing locomotion pose. The weapon follows the animated hand; successive rifle shots retrigger recoil, and recovery blends back into movement. Aim elevation follows the camera. Official reload and equip clips share the upper-body layer; eight-direction walk/jog clips follow the actual movement direction during armed movement. The gait phase follows distance travelled. Consecutive shots crossfade recoil instead of resetting the arm pose.
+Pistol and rifle fire use the official UE mannequin animation sequences, blended into the upper body over the existing locomotion pose. The weapon follows the animated hand; successive rifle shots retrigger recoil, and recovery blends back into movement. Aim elevation follows the camera. Official reload and equip clips share the upper-body layer; Pose Search databases supply the locomotion pose for unarmed, pistol and rifle movement. Consecutive shots crossfade recoil instead of resetting the arm pose.
 
 Full-body action transitions retain the outgoing pose and velocity with critically damped offsets evaluated before contact IK. A single visible mesh and permanent weapon socket carry movement, traversal, and combat. Ground acceleration, braking, speed changes, and camera-facing rotation are smoothed.
 
 ![Moving fire, reload, and official weapon actions in the game](Docs/Images/firing-animation.gif)
+
+Ground locomotion now uses **Motion Matching / Pose Search**, with three databases containing 51 official template clips and 2,910 indexed poses. Recorded pose history and predicted movement select animation frames; database changes, jump/landing blends and the existing upper-body weapon layers are integrated. Setup and coverage are documented in the [Motion Matching guide](Docs/MOTION_MATCHING.md).
+
+![Real Motion Matching playback: movement, turn, stop, armed strafe, backward fire and jump](Docs/Images/motion-matching.gif)
 
 ## Getting started
 
@@ -48,6 +52,8 @@ The macOS scripts default to `/Users/Shared/Epic Games/UE_5.8`. Update that path
 | [`Scripts/Play.command`](Scripts/Play.command) | Start the game from the beach, or resume a saved checkpoint |
 | [`Scripts/PlayTower.command`](Scripts/PlayTower.command) | Start beside the tower to try wall climbing; keeps existing saves |
 | [`Scripts/Build.command`](Scripts/Build.command) | Build the editor module |
+| [`Scripts/SetupMotionMatching.command`](Scripts/SetupMotionMatching.command) | Generate the Pose Search schema, databases and compiled AnimBlueprint |
+| [`Scripts/MotionMatchingReview.command`](Scripts/MotionMatchingReview.command) | Capture actual matched movement and combat |
 | [`Scripts/SmokeTest.command`](Scripts/SmokeTest.command) | Run checks in the actual game world |
 | [`Scripts/AnimationReview.command`](Scripts/AnimationReview.command) | Capture repeatable climbing and firing animation frames |
 
@@ -94,6 +100,8 @@ After restoring the required assets, run this in your system terminal to generat
 python3 Scripts/prepare_island_assets.py
 ```
 
+After compiling and restoring template assets, run `Scripts/SetupMotionMatching.command` and restart Unreal to load the generated animation class.
+
 Then execute `Scripts/setup_scene.py` through Unreal's **Tools → Execute Python Script** menu. This regenerates the map and overwrites manual changes to that generated level; save your own edits elsewhere first.
 
 | Source | Responsibility |
@@ -103,10 +111,12 @@ Then execute `Scripts/setup_scene.py` through Unreal's **Tools → Execute Pytho
 | [`ExpeditionTower.h`](Source/LostExpedition/ExpeditionTower.h) | Handhold coordinates and tower dimensions |
 | [`ExplorerCharacter.cpp`](Source/LostExpedition/ExplorerCharacter.cpp) | Traversal, combat, and saves |
 | [`ExplorerAnimation.cpp`](Source/LostExpedition/ExplorerAnimation.cpp) | Official firearm animation blending, staged climbing limbs, and pull-up poses |
+| [`ExplorerMotionMatching.cpp`](Source/LostExpedition/ExplorerMotionMatching.cpp) | Pose Search query trajectory, weapon database changes and evaluated selection diagnostics |
+| [`ExpeditionMotionMatchingSetup.cpp`](Source/LostExpedition/ExpeditionMotionMatchingSetup.cpp) | Rebuild indexed databases and the compiled Motion Matching AnimGraph |
 | [`ExplorerPoseComponent.cpp`](Source/LostExpedition/ExplorerPoseComponent.cpp) | Update the visible action pose after locomotion bones are evaluated |
 | [`create_island_materials.py`](Scripts/create_island_materials.py) | Blended sand and rock, shallow water, shoreline foam, and vegetation materials |
 
-The recorded runtime results are in the [test report](Docs/runtime-test.txt). Checks cover the continuous beach-to-tower route, every handhold transfer, supporting-hand and wall-foot contact error, 30/60/120 Hz chaining, buffered taps and reversals, release continuity, blocked reaches, animated rooftop ascent and descent, firearm animation triggers and recoil continuity, moving aim, reload/equip actions, weapon attachment, damage, items, and saves. These results apply to the configured local project; run the checks again after restoring assets in a fresh clone.
+The current suite passes **106 checks**. The recorded runtime results are in the [test report](Docs/runtime-test.txt). Checks cover the continuous beach-to-tower route, every handhold transfer, supporting-hand and wall-foot contact error, 30/60/120 Hz chaining, buffered taps and reversals, release continuity, blocked reaches, animated rooftop ascent and descent, firearm animation triggers and recoil continuity, moving aim, reload/equip actions, weapon attachment, damage, items, and saves. These results apply to the configured local project; run the checks again after restoring assets in a fresh clone.
 
 For repeatable screenshots, run `Scripts/editor_view.py` at editor startup with `-AdventureCapture -AdventureCaptureExit`. It writes the full-resolution island views to `Docs/`. Launching the game with `-WatchtowerVisualReview` captures a real wall-gripping state to `Docs/tower-gameplay.png` and exits. Only the compressed copies in `Docs/Images/` are included in Git.
 
@@ -114,4 +124,4 @@ For repeatable screenshots, run `Scripts/editor_view.py` at editor startup with 
 
 ## Current scope
 
-This is a single-player adventure prototype using the UE mannequin and procedural climbing animation. Climbing still uses generated limb poses rather than authored motion capture. Motion Matching/Pose Search and root-motion Motion Warping are not active: Epic Game Animation Sample has not been downloaded, and its Fab acquisition requires account login. The current ground system uses the template animation blueprint plus directional weapon clips. Rope swinging, audio, and cinematic sequences are not implemented. External asset sources and restoration instructions are listed in [Docs/ASSETS.md](Docs/ASSETS.md).
+This is a single-player adventure prototype using the UE mannequin and procedural climbing animation. Climbing still uses generated limb poses rather than authored motion capture. Motion Matching/Pose Search is active using official template locomotion loops. Dedicated start/stop and pivot clips still need expanded authored coverage. Root-motion Motion Warping is not active, and Game Animation Sample has not been imported. Rope swinging, audio, and cinematic sequences are not implemented. External asset sources and restoration instructions are listed in [Docs/ASSETS.md](Docs/ASSETS.md).

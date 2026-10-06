@@ -8,6 +8,7 @@
 #include "Camera/CameraActor.h"
 #include "Camera/CameraComponent.h"
 #include "Components/PoseableMeshComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "EngineUtils.h"
@@ -30,12 +31,13 @@ void AExpeditionGameMode::StartAnimationReview() {
     AnimationReviewCamera=GetWorld()->SpawnActor<ACameraActor>();
     AnimationReviewCamera->GetCameraComponent()->FieldOfView=65;
     if(TActorIterator<AExplorerCharacter> It(GetWorld());It) {
-        It->NoticeRemaining=0;It->SetActorTickEnabled(false);It->GetCharacterMovement()->SetComponentTickEnabled(false);
+        It->NoticeRemaining=0;It->SetActorTickEnabled(false);It->GetCharacterMovement()->SetComponentTickEnabled(false);It->GetMesh()->SetComponentTickEnabled(false);It->ClimbPose->SetComponentTickEnabled(false);
         if(auto* PC=Cast<APlayerController>(It->GetController())){PC->SetViewTarget(AnimationReviewCamera);if(PC->GetHUD())PC->GetHUD()->bShowHUD=false;}
     }
     CaptureAnimationFrame();
 }
 void AExpeditionGameMode::CaptureAnimationFrame() {
+    if(FParse::Param(FCommandLine::Get(),TEXT("MotionMatchingVisualReview"))){CaptureMotionMatchingFrame();return;}
     if(TActorIterator<AExplorerCharacter> It(GetWorld());It) {
         auto* P=*It;const int32 Frame=AnimationReviewFrame;
         auto Grip=[&](int32 Index){
@@ -66,12 +68,11 @@ void AExpeditionGameMode::CaptureAnimationFrame() {
         if(Frame==168||Frame==180||Frame==192)P->FireShot();
         if(Frame==208)P->StartFire();if(Frame==236)P->StopFire();
         if(Frame==245||Frame==285){P->Magazine[P->Weapon]=0;P->Reserve[P->Weapon]=60;P->Reload();}
-        if(Frame>=160&&Frame<240) {
-            const float Time=(Frame%40)/24.f;
-            P->GetCharacterMovement()->Velocity=FVector(0,140,0);
-            const FVector At=ExpeditionTower::Start()+FVector(-300,Time*140,0);P->SetActorLocation(At);
-        } else if(Frame>=240)P->GetCharacterMovement()->Velocity=FVector::ZeroVector;
-        P->Tick(1.f/24);P->UpdateClimbPose();
+        if(Frame>=160&&Frame<240)P->AddMovementInput(FVector::RightVector,1);
+        else if(Frame>=240)P->GetCharacterMovement()->StopMovementImmediately();
+        P->Tick(1.f/24);
+        if(Frame>=160)P->GetCharacterMovement()->TickComponent(1.f/24,LEVELTICK_All,nullptr);
+        P->GetMesh()->TickAnimation(1.f/24,false);P->GetMesh()->RefreshBoneTransforms();P->UpdateClimbPose();
         const FVector Body=P->GetActorLocation();
         const FVector Center=Frame<160&&P->ClimbPose->IsVisible()?P->ClimbPose->GetBoneLocationByName(TEXT("pelvis"),EBoneSpaces::WorldSpace)+FVector(0,0,20):Body+FVector(0,0,10);
         const FVector Offset=Frame<160?FVector(-340,-260,90):FVector(340,-260,80);

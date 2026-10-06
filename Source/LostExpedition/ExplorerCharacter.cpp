@@ -2,6 +2,7 @@
 #include "ExpeditionTower.h"
 #include "Components/PoseableMeshComponent.h"
 #include "ExplorerPoseComponent.h"
+#include "ExplorerMotionMatching.h"
 #include "Animation/AnimSequence.h"
 #include "ExpeditionActors.h"
 #include "Camera/CameraComponent.h"
@@ -31,7 +32,9 @@ AExplorerCharacter::AExplorerCharacter() {
     GetCharacterMovement()->MaxAcceleration=2400;GetCharacterMovement()->GroundFriction=6;GetCharacterMovement()->BrakingFrictionFactor=1;
     GetMesh()->SetRelativeLocation(FVector(0,0,-96));GetMesh()->SetRelativeRotation(FRotator(0,-90,0));
     GetMesh()->SetSkeletalMesh(LoadObject<USkeletalMesh>(nullptr,TEXT("/Game/Characters/Mannequins/Meshes/SKM_Manny_Simple.SKM_Manny_Simple")));
-    GetMesh()->SetAnimInstanceClass(LoadClass<UAnimInstance>(nullptr,TEXT("/Game/Characters/Mannequins/Anims/Unarmed/ABP_Unarmed.ABP_Unarmed_C")));
+    UClass* Locomotion=LoadClass<UAnimInstance>(nullptr,TEXT("/Game/Animation/MotionMatching/ABP_ExplorerMotionMatching.ABP_ExplorerMotionMatching_C"));
+    if(!Locomotion)Locomotion=LoadClass<UAnimInstance>(nullptr,TEXT("/Game/Characters/Mannequins/Anims/Unarmed/ABP_Unarmed.ABP_Unarmed_C"));
+    GetMesh()->SetAnimInstanceClass(Locomotion);
     ClimbPose=CreateDefaultSubobject<UExplorerPoseComponent>(TEXT("CharacterActionPose"));ClimbPose->SetupAttachment(RootComponent);
     ClimbPose->SetSkinnedAssetAndUpdate(GetMesh()->GetSkinnedAsset());ClimbPose->SetRelativeTransform(GetMesh()->GetRelativeTransform());
     ClimbPose->SetCollisionEnabled(ECollisionEnabled::NoCollision);ClimbPose->SetVisibility(true);GetMesh()->SetVisibility(false);

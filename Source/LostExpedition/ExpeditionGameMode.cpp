@@ -18,7 +18,7 @@ AExpeditionGameMode::AExpeditionGameMode() {
 }
 void AExpeditionGameMode::BeginPlay() {
     Super::BeginPlay();
-    if(FParse::Param(FCommandLine::Get(),TEXT("AnimationVisualReview"))) {
+    if(FParse::Param(FCommandLine::Get(),TEXT("AnimationVisualReview"))||FParse::Param(FCommandLine::Get(),TEXT("MotionMatchingVisualReview"))) {
         GetWorldTimerManager().SetTimer(AnimationReviewTimer,this,&AExpeditionGameMode::StartAnimationReview,3.f,false);
     }
     if(FParse::Param(FCommandLine::Get(),TEXT("WatchtowerStart"))) {

@@ -1,5 +1,6 @@
 #include "ExplorerCharacter.h"
 #include "ExplorerPoseComponent.h"
+#include "ExplorerMotionMatching.h"
 #include "ExpeditionTower.h"
 #include "Components/PoseableMeshComponent.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -138,7 +139,7 @@ void AExplorerCharacter::UpdateClimbPose() {
     auto* Presentation=CastChecked<UExplorerPoseComponent>(ClimbPose);
     ClimbPose->CopyPoseFromSkeletalComponent(GetMesh());
     if(!Climbing) {
-        if(GetCharacterMovement()->IsMovingOnGround())ApplyDirectionalLocomotion(ClimbPose,ArmedLocomotionAnimations,Weapon,GetActorQuat().UnrotateVector(GetVelocity()),LocomotionPhase,ArmAnimationAlpha*Phase(15,60,GetVelocity().Size2D()));
+        if(!Cast<UExplorerMotionMatching>(GetMesh()->GetAnimInstance())&&GetCharacterMovement()->IsMovingOnGround())ApplyDirectionalLocomotion(ClimbPose,ArmedLocomotionAnimations,Weapon,GetActorQuat().UnrotateVector(GetVelocity()),LocomotionPhase,ArmAnimationAlpha*Phase(15,60,GetVelocity().Size2D()));
         UAnimSequence* Action=nullptr;float ActionTime=0,ActionWeight=0;
         if(bReloading) {
             Action=WeaponReloadAnimations[Weapon];const float Elapsed=ReloadDuration-ReloadRemaining;

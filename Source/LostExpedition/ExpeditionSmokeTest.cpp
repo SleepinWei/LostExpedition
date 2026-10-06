@@ -1,4 +1,10 @@
 #include "ExplorerCharacter.h"
+#include "ExplorerMotionMatching.h"
+#include "PoseSearch/PoseSearchDatabase.h"
+#include "GameFramework/PlayerController.h"
+#if WITH_EDITOR
+#include "PoseSearch/PoseSearchDerivedData.h"
+#endif
 #include "ExpeditionActors.h"
 #include "ExpeditionWorld.h"
 #include "ExpeditionTower.h"
@@ -25,7 +31,7 @@ void AExplorerCharacter::RunSmokeTest() {
     TArray<FString> Results;int32 Failed=0;
     auto Check=[&](bool Pass,const FString& Name){Results.Add(FString::Printf(TEXT("%s: %s"),Pass?TEXT("PASS"):TEXT("FAIL"),*Name));if(!Pass)Failed++;UE_LOG(LogTemp,Display,TEXT("ADVENTURE_TEST %s %s"),Pass?TEXT("PASS"):TEXT("FAIL"),*Name);};
     Invulnerability=1000;
-    auto Advance=[&](float Duration){for(float Time=0;Time<Duration;Time+=.016f){Tick(.016f);UpdateClimbPose();}};
+    auto Advance=[&](float Duration){for(float Time=0;Time<Duration;Time+=.016f){Tick(.016f);GetMesh()->TickAnimation(.016f,false);GetMesh()->RefreshBoneTransforms();UpdateClimbPose();}};
     int32 WorldCount=0;
     for(TActorIterator<AExpeditionWorld> It(GetWorld());It;++It){
         WorldCount++;Check(It->Terrain&&It->Terrain->GetNumSections()>0,TEXT("Continuous island terrain generated with collision"));
@@ -42,6 +48,52 @@ void AExplorerCharacter::RunSmokeTest() {
         Check(Grips==ExpeditionTower::Steps,TEXT("All tower stone handles are placed"));
     }
     Check(WorldCount==1,TEXT("Exactly one island environment actor"));
+    auto* Matching=Cast<UExplorerMotionMatching>(GetMesh()->GetAnimInstance());
+    Check(Matching!=nullptr,TEXT("Character evaluates the compiled Epic Motion Matching AnimBlueprint"));
+    TArray<FString> MotionSelections;
+    if(Matching) {
+        bool Ready=Matching->Databases.Num()==3;
+        for(auto Database:Matching->Databases) {
+#if WITH_EDITOR
+            if(Database)UE::PoseSearch::FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(Database,UE::PoseSearch::ERequestAsyncBuildFlag::ContinueRequest|UE::PoseSearch::ERequestAsyncBuildFlag::WaitForCompletion);
+#endif
+            Ready=Ready&&Database&&Database->GetNumAnimationAssets()==17&&Database->GetSearchIndex().GetNumPoses()>400;
+        }
+        Check(Ready,TEXT("All three Pose Search databases contain 17 clips and built searchable pose indexes"));
+        SetActorLocation(FVector(3000,0,2299));SetActorRotation(FRotator::ZeroRotator);
+        GetCharacterMovement()->SetMovementMode(MOVE_Walking);GetCharacterMovement()->StopMovementImmediately();
+        if(auto* PC=Cast<APlayerController>(GetController()))PC->SetControlRotation(FRotator::ZeroRotator);
+        Matching->ResetTrajectory();
+        auto Simulate=[&](FVector2D Input,float Duration) {
+            for(float Time=0;Time<Duration;Time+=1.f/60) {
+                Forward(Input.X);Right(Input.Y);Tick(1.f/60);
+                GetCharacterMovement()->TickComponent(1.f/60,LEVELTICK_All,nullptr);
+                GetMesh()->TickAnimation(1.f/60,false);GetMesh()->RefreshBoneTransforms();UpdateClimbPose();
+            }
+            MotionSelections.Add(FString::Printf(TEXT("%s / %s @ %.3f s; cost %.3f; speed %.1f; requested %s"),*Matching->MatchedDatabase,*Matching->MatchedAnimation,Matching->MatchedTime,Matching->MatchCost,GetVelocity().Size2D(),*GetNameSafe(Matching->ActiveDatabase)));
+            UE_LOG(LogTemp,Display,TEXT("MOTION_MATCH_SELECTION %s"),*MotionSelections.Last());
+        };
+        bAim=false;bSprint=true;FireAnimationTime=EquipAnimationTime=-1;ArmAnimationAlpha=0;
+        Simulate(FVector2D(1,0),.8f);
+        Check(Matching->bHasMatchedPose&&Matching->MatchedDatabase==TEXT("PSD_Unarmed")&&Matching->MatchedAnimation.Contains(TEXT("Jog_Fwd")),TEXT("Actual sprint input selects an unarmed forward jog pose"));
+        Check(Matching->MotionTrajectory.Samples.Num()==8&&Matching->MotionTrajectory.Samples[0].TimeInSeconds<0&&Matching->MotionTrajectory.Samples.Last().TimeInSeconds>.8f,TEXT("Matching query receives recorded history and future movement samples"));
+        bSprint=false;Simulate(FVector2D::ZeroVector,.8f);
+        Check(Matching->bHasMatchedPose&&Matching->MatchedAnimation.Contains(TEXT("Idle")),TEXT("Braking returns the real Motion Matching selection to idle"));
+        bAim=true;Weapon=0;Simulate(FVector2D(0,1),.8f);
+        Check(Matching->MatchedDatabase==TEXT("PSD_Pistol")&&Matching->MatchedAnimation.Contains(TEXT("Right")),TEXT("Pistol aim selects a right strafe through Pose Search"));
+        Weapon=1;Simulate(FVector2D(-1,0),.8f);
+        Check(Matching->MatchedDatabase==TEXT("PSD_Rifle")&&Matching->MatchedAnimation.Contains(TEXT("Bwd")),TEXT("Rifle swap and reversal select the rifle backward database pose"));
+        const FVector BeforeEvaluation=GetActorLocation();Advance(.1f);
+        Check(GetActorLocation().Equals(BeforeEvaluation,.001f),TEXT("Animation root extraction never displaces the collision capsule"));
+        GetCharacterMovement()->SetMovementMode(MOVE_Falling);GetCharacterMovement()->Velocity=FVector(0,0,400);Advance(.1f);
+        Check(Matching->bUseAirPose&&Matching->AirSequence==Matching->JumpSequence,TEXT("Jump ascent blends from matched locomotion to the authored jump pose"));
+        GetCharacterMovement()->Velocity=FVector(0,0,-400);Advance(.1f);
+        Check(Matching->bUseAirPose&&Matching->AirSequence==Matching->FallSequence,TEXT("Jump descent evaluates the fall loop"));
+        GetCharacterMovement()->SetMovementMode(MOVE_Walking);GetCharacterMovement()->Velocity=FVector::ZeroVector;Advance(.1f);
+        Check(Matching->bUseAirPose&&Matching->AirSequence==Matching->LandSequence,TEXT("Ground contact blends through the authored landing pose"));
+        Advance(.4f);Check(!Matching->bUseAirPose&&Matching->bHasMatchedPose&&Matching->SelectionChanges>=4&&Matching->EvaluatedFrames>100,TEXT("Landing resumes evaluated Motion Matching with recorded selection changes"));
+        bAim=false;Weapon=0;ArmAnimationAlpha=0;Forward(0);Right(0);ConsumeMovementInputVector();GetCharacterMovement()->StopMovementImmediately();
+    }
     Check(IslandTerrain::Height(-9200,-2200)<400&&IslandTerrain::Height(1600,900)>2100,TEXT("Low sandy coast and elevated central plateau"));
     for(TActorIterator<AExpeditionGuard> It(GetWorld());It;++It)It->bTrainingTarget=true;
     auto SupportedPosition=[&](float X,float Y,FVector& Out){
@@ -172,11 +224,22 @@ void AExplorerCharacter::RunSmokeTest() {
     bool AllDirections=ArmedLocomotionAnimations.Num()==32;
     for(auto Clip:ArmedLocomotionAnimations)AllDirections=AllDirections&&Clip!=nullptr;
     Check(AllDirections,TEXT("Both weapons load eight official walk and jog directions"));
-    const FVector IdleFoot=ClimbPose->GetBoneLocationByName(TEXT("foot_r"),EBoneSpaces::ComponentSpace);
-    GetCharacterMovement()->Velocity=GetActorRightVector()*180;Advance(.25f);
-    const FVector StrafeFoot=ClimbPose->GetBoneLocationByName(TEXT("foot_r"),EBoneSpaces::ComponentSpace);
-    GetCharacterMovement()->Velocity=-GetActorForwardVector()*180;Advance(.25f);
-    Check(FVector::Dist(IdleFoot,StrafeFoot)>5&&FVector::Dist(StrafeFoot,ClimbPose->GetBoneLocationByName(TEXT("foot_r"),EBoneSpaces::ComponentSpace))>5,TEXT("Moving aim selects distinct strafe and backward foot poses"));
+    auto MoveAim=[&](FVector Direction){
+        const FVector InitialFoot=ClimbPose->GetBoneLocationByName(TEXT("foot_r"),EBoneSpaces::ComponentSpace);float Excursion=0;
+        for(int32 Frame=0;Frame<48;Frame++) {
+            AddMovementInput(Direction,1);Tick(1.f/60);GetCharacterMovement()->TickComponent(1.f/60,LEVELTICK_All,nullptr);
+            GetMesh()->TickAnimation(1.f/60,false);GetMesh()->RefreshBoneTransforms();UpdateClimbPose();
+            Excursion=FMath::Max(Excursion,float(FVector::Dist(InitialFoot,ClimbPose->GetBoneLocationByName(TEXT("foot_r"),EBoneSpaces::ComponentSpace))));
+        }
+                if(Matching)UE_LOG(LogTemp,Display,TEXT("MOVING_AIM_QUERY location=%s velocity=%s acceleration=%s falling=%d air=%d facing=%s futureDelta=%s cost=%.3f"),*GetActorLocation().ToString(),*GetVelocity().ToString(),*GetCharacterMovement()->GetCurrentAcceleration().ToString(),GetCharacterMovement()->IsFalling(),Matching->bUseAirPose,*GetActorRotation().ToString(),* (Matching->MotionTrajectory.Samples.Last().Position-Matching->MotionTrajectory.Samples[2].Position).ToString(),Matching->MatchCost);
+        return Excursion;
+    };
+    const float StrafeFootMotion=MoveAim(GetActorRightVector());
+    const FString StrafeAnimation=Matching?Matching->MatchedAnimation:TEXT("FallbackStrafe");
+    const float BackFootMotion=MoveAim(-GetActorForwardVector());
+    const FString BackAnimation=Matching?Matching->MatchedAnimation:TEXT("FallbackBackward");
+    UE_LOG(LogTemp,Display,TEXT("MOVING_AIM strafe=%s footMotion=%.2f back=%s footMotion=%.2f speed=%.1f"),*StrafeAnimation,StrafeFootMotion,*BackAnimation,BackFootMotion,GetVelocity().Size2D());
+    Check(StrafeFootMotion>5&&BackFootMotion>5&&StrafeAnimation!=BackAnimation,TEXT("Moving aim evaluates distinct strafe and backward foot motion over a cycle"));
     GetCharacterMovement()->Velocity=FVector::ZeroVector;
     Magazine[1]=30;ShotCooldown=0;StartFire();Advance(.30f);StopFire();Check(Magazine[1]<=27&&FireAnimationTime>=0&&ClimbPose->IsVisible(),TEXT("Automatic rifle fire repeatedly triggers the rifle recoil animation"));const FQuat BeforeRetrigger=ClimbPose->GetBoneTransformByName(TEXT("upperarm_r"),EBoneSpaces::ComponentSpace).GetRotation();ShotCooldown=0;FireShot();
     Check(BeforeRetrigger.AngularDistance(ClimbPose->GetBoneTransformByName(TEXT("upperarm_r"),EBoneSpaces::ComponentSpace).GetRotation())<.005f,TEXT("Rifle recoil retrigger preserves the outgoing arm pose before crossfading"));
@@ -197,6 +260,7 @@ void AExplorerCharacter::RunSmokeTest() {
     Guard->Health=90;Guard->bDead=false;
     auto* Grenade=GetWorld()->SpawnActor<AExpeditionGrenade>(FVector(3320,0,2320),FRotator::ZeroRotator);Grenade->Explode();Check(Guard->Health<90,TEXT("Grenade applies radial damage"));
     FString Report=FString::Printf(TEXT("Lost Expedition runtime smoke test\n%d checks; %d failures\n\n"),Results.Num(),Failed)+FString::Join(Results,TEXT("\n"))+FString::Printf(TEXT("\n\nFixed-step contact metrics: support hand %.3f cm; planted foot %.3f cm; 30/120 Hz body path difference %.3f cm.\n"),LargestContactError,LargestFootError,FVector::Dist(RatePositions[0],RatePositions[2]));
+    Report+=TEXT("\nEvaluated Motion Matching selections:\n")+FString::Join(MotionSelections,TEXT("\n"))+TEXT("\n");
     FFileHelper::SaveStringToFile(Report,*(FPaths::ProjectDir()/TEXT("Docs/runtime-test.txt")));
     UE_LOG(LogTemp,Display,TEXT("ADVENTURE_SMOKE_COMPLETE checks=%d failures=%d"),Results.Num(),Failed);
     FPlatformMisc::RequestExitWithStatus(false,Failed==0?0:1);

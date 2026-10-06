@@ -1,0 +1,5 @@
+PSD_Unarmed: 17 animations, 1055 indexed poses
+PSD_Pistol: 17 animations, 928 indexed poses
+PSD_Rifle: 17 animations, 927 indexed poses
+ABP_ExplorerMotionMatching: compiled, trajectory + pose history + Motion Matching + air blend
+MM_SETUP_COMPLETE

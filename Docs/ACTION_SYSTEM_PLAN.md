@@ -4,9 +4,9 @@
 
 Upgrade the island prototype so that moving, grabbing the tower, climbing several handholds, mantling, and aiming form a continuous sequence. Responsive input, stable hand and foot contacts, and consistent collision take priority over adding more actions.
 
-## Baseline and target
+## Baseline before the first upgrade and target
 
-The existing prototype plays official firearm clips but generates climbing with timed position interpolation and two-bone IK. A handhold transfer lasts 0.76 seconds, followed by a cooldown. Commands received during a transfer are not buffered. Traversal and locomotion use separate visible meshes, without a full-body exit blend. The 73 recorded checks establish functional behavior; visual quality and input continuity need separate validation.
+At the original baseline, the prototype plays official firearm clips but generates climbing with timed position interpolation and two-bone IK. A handhold transfer lasts 0.76 seconds, followed by a cooldown. Commands received during a transfer are not buffered. Traversal and locomotion use separate visible meshes, without a full-body exit blend. The 73 recorded checks establish functional behavior; visual quality and input continuity need separate validation.
 
 The target combines an animation movement model, gameplay-owned traversal targets, authored animation where available, contact correction, and transitions that preserve the outgoing pose and velocity. Ground movement remains capsule driven. Traversal movement has one authority at a time so root motion and collision sweeps do not fight each other.
 
@@ -58,15 +58,18 @@ UE 5.8.3 Mac Development build succeeded. The real-world runtime suite passes **
 
 Real-engine captures include chained vertical/sideways traversal, rooftop ascent/descent, moving fire, and both reload actions. The raw 960×600 frames remain local; compact GIFs are included in the README. Visual review must still assess the authored quality of a final character/animation set.
 
-## Remaining dependency and next work
+## Motion Matching upgrade implemented
 
-Epic Game Animation Sample is free, but its Fab acquisition currently requires the user's Epic login. It was not downloaded or migrated during this upgrade. The project has no sample Pose Search database; Motion Matching and root-motion Motion Warping are **not active**. Enabling plugins alone would not provide either feature.
+The next upgrade replaces active ground locomotion with Epic's compiled Motion Matching node. Three Pose Search databases use the existing official template skeleton and 51 locomotion sequences, totaling 2,910 indexed poses. Actual pose history, past movement and predicted velocity/facing supply the query. Jump, fall and landing have explicit-time blends; weapon changes interrupt the continuing result when its database is no longer allowed. Capsule movement and the current climbing/contact pipeline retain their existing authority.
 
-After the sample is available locally:
+Generation, runtime verification, capture workflow and precise coverage are recorded in [MOTION_MATCHING.md](MOTION_MATCHING.md). The first upgrade's 94-check result above is historical; the current results are in [runtime-test.txt](runtime-test.txt).
 
-1. Inspect its skeleton, retargeting setup, locomotion database, traversal clips, and gameplay assumptions; migrate compatible assets and dependencies locally.
-2. Replace the ground template/directional selector with the sample's animation instance, pose history, trajectory input, and matching database. Preserve the capsule movement authority and the existing action/contact interface.
-3. Add authored grab, reach, pull-up, drop, and landing coverage. Use named Motion Warping targets only for clips that actually contain compatible root motion. Retain IK after the animation transitions for final contact correction.
-4. Re-run the gameplay/contact suite and compare stop/start, sharp turns, landing, and the complete tower route in real playback. The procedural limb generator remains a fallback until authored coverage is verified.
+## Remaining coverage and next work
 
-Rope traversal, motion-captured climbing coverage, physical secondary animation, sound, and cinematic polish remain later work. This first upgrade establishes a continuous input/contact pipeline; it does not claim Uncharted's production animation quality.
+Game Animation Sample is optional expanded content, not a prerequisite for the installed Motion Matching system. It has not been downloaded or migrated. Dedicated start/stop and pivot coverage, authored climbing/reaching and varied landing clips remain future work.
+
+1. Expand compatible authored movement/traversal coverage from the free sample or other licensed clips, preserving skeleton and dependency restoration.
+2. Tune selection and transitions against those clips; use Motion Warping only for traversal sequences with compatible authored root motion.
+3. Re-run the gameplay/contact suite and compare starts, stops, sharp turns, landing and the full tower route in real playback.
+
+Rope traversal, physical secondary animation, sound and cinematic polish remain later work. This is a functioning prototype with Motion Matching, not a claim of Uncharted's production animation quality.
