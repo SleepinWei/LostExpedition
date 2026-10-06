@@ -51,8 +51,10 @@ if not lib.does_asset_exist('/Game/Materials/M_IslandFoam'):
     alpha=custom(m,'float wave=sin(UV.x*2.7+sin(UV.x*1.3)+T*.4)*.5+.5; return saturate(wave-.15)*sin(UV.y*3.14159)*.5;',[('UV',uv,''),('T',t,'')],unreal.CustomMaterialOutputType.CMOT_FLOAT1)
     output(color(m,(.68,.81,.74)),'',unreal.MaterialProperty.MP_BASE_COLOR);output(alpha,'',unreal.MaterialProperty.MP_OPACITY);output(scalar(m,.7),'',unreal.MaterialProperty.MP_ROUGHNESS);edit.recompile_material(m);lib.save_loaded_asset(m)
 for name,leaf in [('M_PalmLeaf',True),('M_PalmBark',False)]:
-    if lib.does_asset_exist('/Game/Materials/'+name):continue
-    m=fresh(name);m.set_editor_property('two_sided',True)
+    if lib.does_asset_exist('/Game/Materials/'+name):
+        m=unreal.load_asset('/Game/Materials/'+name);m.set_editor_property('used_with_instanced_static_meshes',True)
+        edit.recompile_material(m);lib.save_loaded_asset(m,only_if_is_dirty=False);continue
+    m=fresh(name);m.set_editor_property('two_sided',True);m.set_editor_property('used_with_instanced_static_meshes',True)
     uv=node(m,unreal.MaterialExpressionTextureCoordinate)
     code='float vein=pow(abs(UV.x-.5)*2,.4); return lerp(float3(.026,.075,.012),float3(.07,.22,.025),vein);' if leaf else 'float ring=pow(sin(UV.y*6.283)*.5+.5,7); return lerp(float3(.24,.16,.085),float3(.12,.08,.04),ring*.55);'
     c=custom(m,code,[('UV',uv,'')]);output(c,'',unreal.MaterialProperty.MP_BASE_COLOR);output(scalar(m,.8),'',unreal.MaterialProperty.MP_ROUGHNESS)
