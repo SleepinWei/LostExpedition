@@ -28,20 +28,26 @@ AExplorerCharacter::AExplorerCharacter() {
     GetCharacterMovement()->RotationRate=FRotator(0,540,0);
     GetCharacterMovement()->MaxWalkSpeed=430;GetCharacterMovement()->JumpZVelocity=540;
     GetCharacterMovement()->AirControl=.4f;GetCharacterMovement()->BrakingDecelerationWalking=1800;
+    GetCharacterMovement()->MaxAcceleration=2400;GetCharacterMovement()->GroundFriction=6;GetCharacterMovement()->BrakingFrictionFactor=1;
     GetMesh()->SetRelativeLocation(FVector(0,0,-96));GetMesh()->SetRelativeRotation(FRotator(0,-90,0));
     GetMesh()->SetSkeletalMesh(LoadObject<USkeletalMesh>(nullptr,TEXT("/Game/Characters/Mannequins/Meshes/SKM_Manny_Simple.SKM_Manny_Simple")));
     GetMesh()->SetAnimInstanceClass(LoadClass<UAnimInstance>(nullptr,TEXT("/Game/Characters/Mannequins/Anims/Unarmed/ABP_Unarmed.ABP_Unarmed_C")));
     ClimbPose=CreateDefaultSubobject<UExplorerPoseComponent>(TEXT("CharacterActionPose"));ClimbPose->SetupAttachment(RootComponent);
     ClimbPose->SetSkinnedAssetAndUpdate(GetMesh()->GetSkinnedAsset());ClimbPose->SetRelativeTransform(GetMesh()->GetRelativeTransform());
-    ClimbPose->SetCollisionEnabled(ECollisionEnabled::NoCollision);ClimbPose->SetVisibility(false);
+    ClimbPose->SetCollisionEnabled(ECollisionEnabled::NoCollision);ClimbPose->SetVisibility(true);GetMesh()->SetVisibility(false);
     ClimbPose->AddTickPrerequisiteComponent(GetMesh());
     WeaponIdleAnimations={LoadObject<UAnimSequence>(nullptr,TEXT("/Game/Characters/Mannequins/Anims/Pistol/MF_Pistol_Idle_ADS")),LoadObject<UAnimSequence>(nullptr,TEXT("/Game/Characters/Mannequins/Anims/Rifle/MF_Rifle_Idle_ADS"))};
     WeaponFireAnimations={LoadObject<UAnimSequence>(nullptr,TEXT("/Game/Characters/Mannequins/Anims/Pistol/MM_Pistol_Fire")),LoadObject<UAnimSequence>(nullptr,TEXT("/Game/Characters/Mannequins/Anims/Rifle/MM_Rifle_Fire"))};
+    WeaponReloadAnimations={LoadObject<UAnimSequence>(nullptr,TEXT("/Game/Characters/Mannequins/Anims/Pistol/MM_Pistol_Reload")),LoadObject<UAnimSequence>(nullptr,TEXT("/Game/Characters/Mannequins/Anims/Rifle/MM_Rifle_Reload"))};
+    WeaponEquipAnimations={LoadObject<UAnimSequence>(nullptr,TEXT("/Game/Characters/Mannequins/Anims/Pistol/MM_Pistol_Equip")),LoadObject<UAnimSequence>(nullptr,TEXT("/Game/Characters/Mannequins/Anims/Rifle/MM_Rifle_Equip"))};
+    const TCHAR* Directions[]={TEXT("Fwd"),TEXT("Fwd_Right"),TEXT("Right"),TEXT("Bwd_Right"),TEXT("Bwd"),TEXT("Bwd_Left"),TEXT("Left"),TEXT("Fwd_Left")};
+    for(const TCHAR* Type:{TEXT("Pistol"),TEXT("Rifle")})for(const TCHAR* Gait:{TEXT("Walk"),TEXT("Jog")})for(const TCHAR* Direction:Directions)
+        ArmedLocomotionAnimations.Add(LoadObject<UAnimSequence>(nullptr,*FString::Printf(TEXT("/Game/Characters/Mannequins/Anims/%s/%s/MF_%s_%s_%s"),Type,Gait,Type,Gait,Direction)));
     GetMesh()->VisibilityBasedAnimTickOption=EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
     Boom=CreateDefaultSubobject<USpringArmComponent>(TEXT("ShoulderBoom"));Boom->SetupAttachment(RootComponent);
     Boom->TargetArmLength=360;Boom->SocketOffset=FVector(0,55,65);Boom->bUsePawnControlRotation=true;Boom->bEnableCameraLag=true;Boom->CameraLagSpeed=12;
     Camera=CreateDefaultSubobject<UCameraComponent>(TEXT("AdventureCamera"));Camera->SetupAttachment(Boom);Camera->FieldOfView=80;
-    WeaponMesh=CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Weapon"));WeaponMesh->SetupAttachment(GetMesh(),TEXT("HandGrip_R"));
+    WeaponMesh=CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Weapon"));WeaponMesh->SetupAttachment(ClimbPose,TEXT("HandGrip_R"));
     WeaponMesh->SetStaticMesh(LoadObject<UStaticMesh>(nullptr,TEXT("/Game/Weapons/Pistol/Meshes/SM_Pistol.SM_Pistol")));
     WeaponMesh->SetRelativeLocation(FVector(0,0,0));WeaponMesh->SetRelativeRotation(FRotator::ZeroRotator);WeaponMesh->SetRelativeScale3D(FVector(1));WeaponMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
@@ -77,19 +83,17 @@ void AExplorerCharacter::SetupPlayerInputComponent(UInputComponent* I) {
 }
 void AExplorerCharacter::Forward(float V) {
     ForwardInput=V;
-    if(Traversal==ETraversalState::Clinging&&!bJournal)MoveWallGrip(RightInput,V);
     if(Controller&&Traversal==ETraversalState::Walking&&!bJournal&&!bCompleted) AddMovementInput(FRotator(0,Controller->GetControlRotation().Yaw,0).Vector(),V);
 }
 void AExplorerCharacter::Right(float V) {
     RightInput=V;
-    if(Traversal==ETraversalState::Clinging&&!bJournal)MoveWallGrip(V,ForwardInput);
     if(Controller&&Traversal==ETraversalState::Walking&&!bJournal&&!bCompleted) AddMovementInput(FRotationMatrix(FRotator(0,Controller->GetControlRotation().Yaw,0)).GetUnitAxis(EAxis::Y),V);
 }
 void AExplorerCharacter::Yaw(float V){if(!bJournal)AddControllerYawInput(V*.8f);}
 void AExplorerCharacter::Pitch(float V){if(!bJournal)AddControllerPitchInput(V*.65f);}
 void AExplorerCharacter::SprintStart(){bSprint=true;}void AExplorerCharacter::SprintStop(){bSprint=false;}
 void AExplorerCharacter::AimStart(){bAim=true;}void AExplorerCharacter::AimStop(){bAim=false;}
-void AExplorerCharacter::Journal(){bJournal=!bJournal;if(bJournal){StopFire();GetCharacterMovement()->StopMovementImmediately();}}
+void AExplorerCharacter::Journal(){bJournal=!bJournal;if(bJournal){StopFire();ClearTraversalInput();GetCharacterMovement()->StopMovementImmediately();}}
 void AExplorerCharacter::Notify(const FString& T){Notice=T;NoticeRemaining=4;}
 void AExplorerCharacter::Tick(float DT) {
     Super::Tick(DT);ShotCooldown=FMath::Max(0.f,ShotCooldown-DT);NoticeRemaining-=DT;DamageFlash=FMath::Max(0.f,DamageFlash-DT);Invulnerability-=DT;LedgeCooldown-=DT;GripCooldown-=DT;
@@ -97,40 +101,25 @@ void AExplorerCharacter::Tick(float DT) {
     Camera->FieldOfView=FMath::FInterpTo(Camera->FieldOfView,bAim?58:80,DT,9);
     Boom->TargetArmLength=FMath::FInterpTo(Boom->TargetArmLength,bAim?200:360,DT,9);
     AnimationClock+=DT;GrabTime+=DT;
+    const float Speed=GetVelocity().Size2D();
+    LocomotionPhase=FMath::Fmod(LocomotionPhase+DT*Speed/FMath::Lerp(300.f,600.f,FMath::SmoothStep(240.f,430.f,Speed)),1.f);
     if(FireAnimationTime>=0){FireAnimationTime+=DT;if(!WeaponFireAnimations[Weapon]||FireAnimationTime>WeaponFireAnimations[Weapon]->GetPlayLength()/(Weapon==0?1.5f:2.f))FireAnimationTime=-1;}
-    const bool Armed=Traversal==ETraversalState::Walking&&(bAim||FireAnimationTime>=0)&&!bCompleted;
-    ArmAnimationAlpha=FMath::FInterpTo(ArmAnimationAlpha,Armed?1.f:0.f,DT,15);
-    bUseControllerRotationYaw=(bAim||FireAnimationTime>=0)&&Traversal==ETraversalState::Walking;
-    GetCharacterMovement()->bOrientRotationToMovement=!bUseControllerRotationYaw;
-    GetCharacterMovement()->MaxWalkSpeed=bAim?240:(bSprint?650:430);
+    FireBlendTime+=DT;if(PreviousFireAnimationTime>=0){PreviousFireAnimationTime+=DT;if(FireBlendTime>=.055f)PreviousFireAnimationTime=-1;}
+    if(EquipAnimationTime>=0){EquipAnimationTime+=DT;if(!WeaponEquipAnimations[Weapon]||EquipAnimationTime>WeaponEquipAnimations[Weapon]->GetPlayLength())EquipAnimationTime=-1;}
+    const bool Armed=Traversal==ETraversalState::Walking&&(bAim||FireAnimationTime>=0||bReloading||EquipAnimationTime>=0)&&!bCompleted;
+    ArmAnimationAlpha=FMath::Lerp(ArmAnimationAlpha,Armed?1.f:0.f,1-FMath::Exp(-18*DT));
+    bUseControllerRotationYaw=false;
+    GetCharacterMovement()->bUseControllerDesiredRotation=Armed;
+    GetCharacterMovement()->bOrientRotationToMovement=!Armed;
+    GetCharacterMovement()->RotationRate=FRotator(0,Armed?720:540,0);
+    GetCharacterMovement()->MaxWalkSpeed=FMath::Lerp(GetCharacterMovement()->MaxWalkSpeed,bAim?240.f:(bSprint?650.f:430.f),1-FMath::Exp(-14*DT));
     WeaponMesh->SetVisibility(Traversal==ETraversalState::Walking&&!bCompleted);
     if(bReloading) {
         ReloadRemaining-=DT;
         if(ReloadRemaining<=0){int32 N=FMath::Min(Capacity[Weapon]-Magazine[Weapon],Reserve[Weapon]);Magazine[Weapon]+=N;Reserve[Weapon]-=N;bReloading=false;}
     }
     if(bFiring&&Weapon==1)FireShot();
-    if(Traversal==ETraversalState::Reaching) {
-        ReachTime+=DT;float T=FMath::Clamp(ReachTime/(bEnteringFromRoof?RoofEntryDuration:GripTransferDuration),0.f,1.f),Ease=FMath::SmoothStep(0.f,bEnteringFromRoof?1.f:.65f,T);
-        FVector Target=FMath::Lerp(ReachStart,ExpeditionTower::HangPosition(TargetGrip),Ease);
-        if(bEnteringFromRoof){FVector Above=ExpeditionTower::HangPosition(TargetGrip);Above.Z=ExpeditionTower::SummitZ()+110;Target=T<.45f?FMath::Lerp(ReachStart,Above,FMath::SmoothStep(0.f,.45f,T)):FMath::Lerp(Above,ExpeditionTower::HangPosition(TargetGrip),FMath::SmoothStep(.45f,1.f,T));}
-        FHitResult Hit;SetActorLocation(Target,true,&Hit);
-        Ledge=FMath::Lerp(ExpeditionTower::Grip(CurrentGrip),ExpeditionTower::Grip(TargetGrip),Ease);
-        if(Hit.bBlockingHit){Drop();Notify(TEXT("No clear reach to that handhold"));}
-        else if(T>=1){CurrentGrip=TargetGrip;bEnteringFromRoof=false;Traversal=ETraversalState::Clinging;GripCooldown=.12f;}
-    } else if(Traversal==ETraversalState::Mantling) {
-        MantleTime+=DT;float T=FMath::Clamp(MantleTime/MantleDuration,0.f,1.f);
-        FVector Above=MantleStart;Above.Z=MantleEnd.Z+15;
-        FVector P=T<.55f?FMath::Lerp(MantleStart,Above,FMath::SmoothStep(0.f,.55f,T)):FMath::Lerp(Above,MantleEnd,FMath::SmoothStep(.55f,1.f,T));
-        FHitResult Hit;SetActorLocation(P,true,&Hit);
-        if(Hit.bBlockingHit){Drop();Notify(TEXT("Climb blocked"));}
-        else if(T>=1){CurrentGrip=-1;Traversal=ETraversalState::Walking;GetCharacterMovement()->SetMovementMode(MOVE_Walking);LedgeCooldown=.4;}
-    } else if(Traversal==ETraversalState::Hanging) {
-        if(FMath::Abs(RightInput)>.1f&&!bJournal) {
-            FVector Tangent=FVector::CrossProduct(FVector::UpVector,-WallNormal);
-            FVector E,N,At=GetActorLocation()+Tangent*RightInput*DT*145;
-            if(TryLedge(At,-WallNormal,E,N)&&FMath::Abs(E.Z-Ledge.Z)<45&&FVector::DotProduct(N,WallNormal)>.8f){Ledge=E;WallNormal=N;SetActorLocation(Ledge+WallNormal*48-FVector(0,0,100),true);}
-        }
-    } else if(GetCharacterMovement()->IsFalling()&&GetVelocity().Z<100&&LedgeCooldown<=0&&!bJournal) BeginHang();
+    UpdateTraversal(DT);
     RefreshLoot();
 }
 bool AExplorerCharacter::TryLedge(const FVector& At,const FVector& D,FVector& Edge,FVector& Normal) const {
@@ -162,19 +151,19 @@ bool AExplorerCharacter::BeginMantle() {
     MantleEnd=Ledge-WallNormal*85+FVector(0,0,99);
     FCollisionQueryParams Params;Params.AddIgnoredActor(this);
     if(GetWorld()->OverlapBlockingTestByChannel(MantleEnd,FQuat::Identity,ECC_Pawn,FCollisionShape::MakeCapsule(38,94),Params)){Notify(TEXT("No room above this ledge"));return false;}
-    MantleStart=GetActorLocation();MantleTime=0;Traversal=ETraversalState::Mantling;return true;
+    bBufferedMantle=false;MantleStart=GetActorLocation();MantleTime=0;Traversal=ETraversalState::Mantling;return true;
 }
 void AExplorerCharacter::JumpOrClimb() {
     if(bJournal||bCompleted)return;
     if(Traversal==ETraversalState::Clinging){if(CurrentGrip==ExpeditionTower::Steps-1)BeginMantle();else MoveWallGrip(0,1);return;}
-    if(Traversal==ETraversalState::Reaching)return;
+    if(Traversal==ETraversalState::Reaching){if(TargetGrip==ExpeditionTower::Steps-1&&!bEnteringFromRoof)bBufferedMantle=true;else {BufferedTraversalInput=FVector2D(0,1);TraversalBufferRemaining=FMath::Max(.18f,ReachDuration-ReachTime+.18f);}return;}
     if(Traversal==ETraversalState::Hanging){BeginMantle();return;}
     if(Traversal==ETraversalState::Mantling)return;
     if(BeginHang()){BeginMantle();return;}Jump();
 }
 void AExplorerCharacter::Drop() {
     if(Traversal==ETraversalState::Walking)return;
-    CurrentGrip=-1;bEnteringFromRoof=false;ArmAnimationAlpha=0;FireAnimationTime=-1;Traversal=ETraversalState::Walking;GetCharacterMovement()->SetMovementMode(MOVE_Falling);LedgeCooldown=.7;UpdateClimbPose();
+    ClearTraversalInput();TraversalVelocity=FVector::ZeroVector;CurrentGrip=-1;bEnteringFromRoof=false;ArmAnimationAlpha=0;FireAnimationTime=-1;Traversal=ETraversalState::Walking;GetCharacterMovement()->SetMovementMode(MOVE_Falling);LedgeCooldown=.7;UpdateClimbPose();
 }
 void AExplorerCharacter::RefreshLoot() {
     Nearby.Reset();float Best=230;
@@ -190,7 +179,7 @@ void AExplorerCharacter::RefreshLoot() {
 void AExplorerCharacter::Interact() {
     if(bJournal||bCompleted)return;
     if(Traversal==ETraversalState::Clinging){BeginMantle();return;}
-    if(Traversal==ETraversalState::Reaching)return;
+    if(Traversal==ETraversalState::Reaching){JumpOrClimb();return;}
     RefreshLoot();if(Nearby.IsValid()){Nearby->Interact(this);return;}
     if(Traversal==ETraversalState::Hanging)BeginMantle();else BeginHang();
 }
@@ -212,20 +201,20 @@ void AExplorerCharacter::Heal() {
     if(bCompleted||bJournal||Health>=100||Medkits<=0)return;Medkits--;Health=FMath::Min(100.f,Health+60);Notify(TEXT("Medkit used / +60 health"));
 }
 void AExplorerCharacter::Equip(int32 I) {
-    if(Traversal!=ETraversalState::Walking)return;Weapon=I;bReloading=false;bFiring=false;FireAnimationTime=-1;
+    if(Traversal!=ETraversalState::Walking||bJournal||bCompleted)return;Weapon=I;bReloading=false;bFiring=false;FireAnimationTime=-1;EquipAnimationTime=0;
     WeaponMesh->SetStaticMesh(LoadObject<UStaticMesh>(nullptr,I==0?TEXT("/Game/Weapons/Pistol/Meshes/SM_Pistol.SM_Pistol"):TEXT("/Game/Weapons/Rifle/Meshes/SM_Rifle.SM_Rifle")));
     WeaponMesh->SetRelativeScale3D(FVector(1));
 }
 void AExplorerCharacter::Pistol(){Equip(0);}void AExplorerCharacter::Rifle(){Equip(1);}
 void AExplorerCharacter::Reload() {
     if(bReloading||Magazine[Weapon]>=Capacity[Weapon]||Reserve[Weapon]<=0||Traversal!=ETraversalState::Walking||bJournal||bCompleted)return;
-    bReloading=true;ReloadRemaining=Weapon==0?1.2:1.8;
+    bReloading=true;StopFire();EquipAnimationTime=-1;FireAnimationTime=-1;ReloadDuration=Weapon==0?1.2f:1.8f;ReloadRemaining=ReloadDuration;
 }
 void AExplorerCharacter::StartFire(){bFiring=true;FireShot();}void AExplorerCharacter::StopFire(){bFiring=false;}
 void AExplorerCharacter::FireShot() {
     if(ShotCooldown>0||bReloading||Traversal!=ETraversalState::Walking||bJournal||bCompleted)return;
     if(Magazine[Weapon]<=0){Reload();return;}
-    Magazine[Weapon]--;ShotCooldown=Weapon==0?.24f:.105f;FireAnimationTime=0;ArmAnimationAlpha=1;
+    Magazine[Weapon]--;ShotCooldown=Weapon==0?.24f:.105f;PreviousFireAnimationTime=FireAnimationTime;FireBlendTime=0;FireAnimationTime=0;EquipAnimationTime=-1;
     UpdateClimbPose();
     FVector Start=Camera->GetComponentLocation(),D=Camera->GetForwardVector();
     float Spread=bAim?.0025f:.016f;D=FMath::VRandCone(D,Spread);
@@ -264,7 +253,7 @@ void AExplorerCharacter::SaveCheckpoint() {
     if(!UGameplayStatics::SaveGameToSlot(S,TEXT("LostExpedition_Island_Checkpoint"),0))Notify(TEXT("Checkpoint could not be saved"));
 }
 void AExplorerCharacter::Respawn() {
-    Drop();ArmAnimationAlpha=0;FireAnimationTime=-1;UpdateClimbPose();GetCharacterMovement()->StopMovementImmediately();SetActorLocation(Checkpoint,false,nullptr,ETeleportType::TeleportPhysics);
+    Drop();ClearTraversalInput();EquipAnimationTime=-1;ArmAnimationAlpha=0;FireAnimationTime=-1;CastChecked<UExplorerPoseComponent>(ClimbPose)->ResetTransition();UpdateClimbPose();GetCharacterMovement()->StopMovementImmediately();SetActorLocation(Checkpoint,false,nullptr,ETeleportType::TeleportPhysics);
     GetCharacterMovement()->SetMovementMode(MOVE_Walking);Health=100;Invulnerability=3;bReloading=false;bFiring=false;
     if(auto* PC=Cast<APlayerController>(GetController()))PC->SetControlRotation(FRotator(8,28,0));Notify(TEXT("Returned to checkpoint"));
 }
@@ -278,7 +267,7 @@ bool AExplorerCharacter::BeginWallGrip() {
     const FVector RoofGrip=ExpeditionTower::Grip(ExpeditionTower::Steps-1),At=GetActorLocation();
     if(FMath::Abs(At.Z-(RoofGrip.Z+99))<25&&At.X>RoofGrip.X+40&&At.X<RoofGrip.X+190&&FMath::Abs(At.Y-RoofGrip.Y)<100&&FVector::DotProduct(GetActorForwardVector(),ExpeditionTower::WallNormal)>.6f) {
         BeginGrabAnimation();CurrentGrip=TargetGrip=ExpeditionTower::Steps-1;Ledge=RoofGrip;WallNormal=ExpeditionTower::WallNormal;
-        ReachStart=At;ReachTime=0;bEnteringFromRoof=true;Traversal=ETraversalState::Reaching;
+        ClearTraversalInput();ReachDuration=RoofEntryDuration;TraversalVelocity=FVector::ZeroVector;ReachStart=At;ReachTime=0;bEnteringFromRoof=true;Traversal=ETraversalState::Reaching;
         GetCharacterMovement()->StopMovementImmediately();GetCharacterMovement()->SetMovementMode(MOVE_Flying);SetActorRotation((-WallNormal).Rotation());StopFire();return true;
     }
     if(FVector::DotProduct(GetActorForwardVector(),-ExpeditionTower::WallNormal)<.6f)return false;
@@ -294,25 +283,108 @@ bool AExplorerCharacter::BeginWallGrip() {
     if(GetWorld()->OverlapBlockingTestByChannel(Target,FQuat::Identity,ECC_Pawn,FCollisionShape::MakeCapsule(38,94),Query))return false;
     FHitResult Hit;GetWorld()->SweepSingleByChannel(Hit,GetActorLocation(),Target,FQuat::Identity,ECC_Pawn,FCollisionShape::MakeCapsule(38,94),Query);
     if(Hit.bBlockingHit)return false;
-    BeginGrabAnimation();CurrentGrip=Best;WallNormal=ExpeditionTower::WallNormal;Ledge=ExpeditionTower::Grip(Best);
+    ClearTraversalInput();TraversalVelocity=FVector::ZeroVector;BeginGrabAnimation();CurrentGrip=TargetGrip=Best;WallNormal=ExpeditionTower::WallNormal;Ledge=ExpeditionTower::Grip(Best);
     GetCharacterMovement()->StopMovementImmediately();GetCharacterMovement()->SetMovementMode(MOVE_Flying);
     SetActorLocation(Target);SetActorRotation((-WallNormal).Rotation());Traversal=ETraversalState::Clinging;
-    StopFire();bReloading=false;GripCooldown=.15f;UpdateClimbPose();return true;
+    StopFire();bReloading=false;GripCooldown=.08f;UpdateClimbPose();return true;
 }
-bool AExplorerCharacter::MoveWallGrip(float Horizontal,float Vertical) {
-    if(Traversal!=ETraversalState::Clinging||GripCooldown>0||bJournal)return false;
-    const FVector2D Input=FVector2D(Horizontal,Vertical).GetSafeNormal();if(Input.IsNearlyZero())return false;
-    int32 Candidate=-1;float Score=0;
-    for(int32 Index:{CurrentGrip-1,CurrentGrip+1}) {
+void AExplorerCharacter::ClearTraversalInput() {
+    BufferedTraversalInput=PreviousTraversalInput=FVector2D::ZeroVector;TraversalBufferRemaining=0;QueuedGrip=-1;bBufferedMantle=false;
+    ForwardInput=RightInput=0;
+}
+int32 AExplorerCharacter::FindGrip(int32 From,const FVector2D& Value) const {
+    const FVector2D Input=Value.GetSafeNormal();if(Input.IsNearlyZero()||From<0)return -1;
+    int32 Candidate=-1;float Score=.4f;
+    for(int32 Index:{From-1,From+1}) {
         if(Index<0||Index>=ExpeditionTower::Steps)continue;
-        const FVector Delta=ExpeditionTower::Grip(Index)-ExpeditionTower::Grip(CurrentGrip);
-        float Alignment=FVector2D::DotProduct(Input,FVector2D(Delta.Y,Delta.Z).GetSafeNormal());
-        if(Delta.Size()>260||Alignment<.4f||Alignment<=Score)continue;Score=Alignment;Candidate=Index;
+        const FVector Delta=ExpeditionTower::Grip(Index)-ExpeditionTower::Grip(From);
+        const float Alignment=FVector2D::DotProduct(Input,FVector2D(Delta.Y,Delta.Z).GetSafeNormal());
+        if(Delta.Size()>260||Alignment<=Score)continue;
+        FCollisionQueryParams Query;Query.AddIgnoredActor(this);FHitResult Hit;
+        if(GetWorld()->SweepSingleByChannel(Hit,ExpeditionTower::HangPosition(From),ExpeditionTower::HangPosition(Index),FQuat::Identity,ECC_Pawn,FCollisionShape::MakeCapsule(38,94),Query))continue;
+        Score=Alignment;Candidate=Index;
     }
+    return Candidate;
+}
+bool AExplorerCharacter::StartGripTransfer(int32 Candidate) {
     if(Candidate<0)return false;
+    // Recheck the actual body path; queued targets can become obstructed.
     FCollisionQueryParams Query;Query.AddIgnoredActor(this);FHitResult Hit;
     if(GetWorld()->SweepSingleByChannel(Hit,GetActorLocation(),ExpeditionTower::HangPosition(Candidate),FQuat::Identity,ECC_Pawn,FCollisionShape::MakeCapsule(38,94),Query))return false;
-    const float SideReach=ExpeditionTower::Grip(Candidate).Y-ExpeditionTower::Grip(CurrentGrip).Y;
-    bLeadRight=FMath::Abs(SideReach)>100?SideReach>0:!bLeadRight;
-    bEnteringFromRoof=false;TargetGrip=Candidate;ReachStart=GetActorLocation();ReachTime=0;Traversal=ETraversalState::Reaching;return true;
+    const FVector Delta=ExpeditionTower::Grip(Candidate)-ExpeditionTower::Grip(CurrentGrip);
+    bLeadRight=FMath::Abs(Delta.Y)>100?Delta.Y>0:!bLeadRight;
+    ReachDuration=FMath::Clamp(Delta.Size()/240.f,.48f,GripTransferDuration);
+    ReachStartVelocity=TraversalVelocity.GetClampedToMaxSize(170);
+    ReachCurveStartTime=0;ReachCurveNextGrip=-2;ReachEndVelocity=FVector::ZeroVector;
+    bEnteringFromRoof=false;TargetGrip=Candidate;ReachStart=GetActorLocation();ReachTime=0;Traversal=ETraversalState::Reaching;
+    BufferedTraversalInput=FVector2D::ZeroVector;TraversalBufferRemaining=0;QueuedGrip=-1;return true;
+}
+bool AExplorerCharacter::MoveWallGrip(float Horizontal,float Vertical) {
+    if(bJournal)return false;
+    if(Traversal==ETraversalState::Reaching) {
+        BufferedTraversalInput=FVector2D(Horizontal,Vertical);TraversalBufferRemaining=FMath::Max(.18f,ReachDuration-ReachTime+.18f);return false;
+    }
+    if(Traversal!=ETraversalState::Clinging||GripCooldown>0)return false;
+    return StartGripTransfer(FindGrip(CurrentGrip,FVector2D(Horizontal,Vertical)));
+}
+void AExplorerCharacter::UpdateTraversal(float DT) {
+    const bool WasMantling=Traversal==ETraversalState::Mantling;
+    const FVector2D Input=bJournal?FVector2D::ZeroVector:FVector2D(RightInput,ForwardInput);
+    if(Traversal==ETraversalState::Reaching&&!Input.IsNearlyZero(.15f)&&!Input.Equals(PreviousTraversalInput,.1f)) {
+        BufferedTraversalInput=Input;TraversalBufferRemaining=FMath::Max(.18f,ReachDuration-ReachTime+.18f);
+        if(Input.Y<-.15f)bBufferedMantle=false;
+    }
+    PreviousTraversalInput=Input;
+    if(bJournal){BufferedTraversalInput=FVector2D::ZeroVector;TraversalBufferRemaining=0;}
+    FVector2D Command=!Input.IsNearlyZero(.15f)?Input:(TraversalBufferRemaining>0?BufferedTraversalInput:FVector2D::ZeroVector);
+    if(Traversal==ETraversalState::Clinging&&GripCooldown<=0&&!bJournal)StartGripTransfer(FindGrip(CurrentGrip,Command));
+    // Consume the remaining timestep at contact boundaries. Chaining has no cooldown
+    // or extra frame of idle, including at 30 Hz and when reversing direction.
+    float Remaining=DT;
+    for(int32 Boundary=0;Boundary<4&&Remaining>SMALL_NUMBER&&Traversal==ETraversalState::Reaching;Boundary++) {
+        QueuedGrip=bEnteringFromRoof?-1:FindGrip(TargetGrip,Command);
+        const FVector End=ExpeditionTower::HangPosition(TargetGrip);
+        FVector EndVelocity=FVector::ZeroVector;
+        if(QueuedGrip>=0) {
+            const FVector Next=ExpeditionTower::HangPosition(QueuedGrip)-End;
+            const FVector Direction=ExpeditionTower::HangPosition(TargetGrip)-ExpeditionTower::HangPosition(CurrentGrip);
+            if(FVector::DotProduct(Next.GetSafeNormal(),Direction.GetSafeNormal())>.3f)EndVelocity=(Next.GetSafeNormal()+Direction.GetSafeNormal()).GetSafeNormal()*150;
+        }
+        if(!bEnteringFromRoof&&QueuedGrip!=ReachCurveNextGrip) {
+            // Replan the remaining curve from the current position and analytic
+            // velocity when the player releases or changes direction. Changing
+            // only the final tangent would otherwise move the body instantly.
+            ReachCurveNextGrip=QueuedGrip;ReachCurveStartTime=ReachTime;ReachStart=GetActorLocation();ReachStartVelocity=TraversalVelocity;ReachEndVelocity=EndVelocity;
+        }
+        const float Step=FMath::Min(Remaining,FMath::Max(0.f,ReachDuration-ReachTime));Remaining-=Step;ReachTime+=Step;
+        const float T=FMath::Clamp(ReachTime/ReachDuration,0.f,1.f);
+        const float Span=FMath::Max(SMALL_NUMBER,ReachDuration-ReachCurveStartTime),CurveTime=FMath::Clamp((ReachTime-ReachCurveStartTime)/Span,0.f,1.f);
+        FVector Target=FMath::CubicInterp(ReachStart,ReachStartVelocity*Span,End,ReachEndVelocity*Span,CurveTime);
+        if(bEnteringFromRoof){FVector Above=End;Above.Z=ExpeditionTower::SummitZ()+110;Target=T<.45f?FMath::Lerp(ReachStart,Above,FMath::SmoothStep(0.f,.45f,T)):FMath::Lerp(Above,End,FMath::SmoothStep(.45f,1.f,T));}
+        const FVector Old=GetActorLocation();FHitResult Hit;SetActorLocation(Target,true,&Hit);
+        TraversalVelocity=bEnteringFromRoof?(Step>SMALL_NUMBER?(GetActorLocation()-Old)/Step:FVector::ZeroVector):FMath::CubicInterpDerivative(ReachStart,ReachStartVelocity*Span,End,ReachEndVelocity*Span,CurveTime)/Span;
+        Ledge=FMath::Lerp(ExpeditionTower::Grip(CurrentGrip),ExpeditionTower::Grip(TargetGrip),FMath::SmoothStep(0.f,1.f,T));
+        if(Hit.bBlockingHit){Drop();Notify(TEXT("No clear reach to that handhold"));break;}
+        if(T>=1) {
+            CurrentGrip=TargetGrip;bEnteringFromRoof=false;Traversal=ETraversalState::Clinging;GripCooldown=0;TraversalVelocity=EndVelocity;
+            if(bBufferedMantle){bBufferedMantle=false;if(BeginMantle())break;}
+            if(!StartGripTransfer(QueuedGrip)){TraversalVelocity=FVector::ZeroVector;break;}
+            Command=!Input.IsNearlyZero(.15f)?Input:FVector2D::ZeroVector;
+        }
+    }
+    TraversalBufferRemaining=FMath::Max(0.f,TraversalBufferRemaining-DT);
+    if(Traversal==ETraversalState::Mantling) {
+        MantleTime+=WasMantling?DT:Remaining;const float T=FMath::Clamp(MantleTime/MantleDuration,0.f,1.f);
+        FVector Above=MantleStart;Above.Z=MantleEnd.Z+15;
+        const FVector P=T<.55f?FMath::Lerp(MantleStart,Above,FMath::SmoothStep(0.f,.55f,T)):FMath::Lerp(Above,MantleEnd,FMath::SmoothStep(.55f,1.f,T));
+        FHitResult Hit;SetActorLocation(P,true,&Hit);
+        if(Hit.bBlockingHit){Drop();Notify(TEXT("Climb blocked"));}
+        else if(T>=1){ClearTraversalInput();CurrentGrip=-1;Traversal=ETraversalState::Walking;GetCharacterMovement()->SetMovementMode(MOVE_Walking);LedgeCooldown=.4f;}
+    } else if(Traversal==ETraversalState::Hanging) {
+        if(FMath::Abs(RightInput)>.1f&&!bJournal) {
+            const FVector Tangent=FVector::CrossProduct(FVector::UpVector,-WallNormal);
+            FVector E,N,At=GetActorLocation()+Tangent*RightInput*DT*145;
+            if(TryLedge(At,-WallNormal,E,N)&&FMath::Abs(E.Z-Ledge.Z)<45&&FVector::DotProduct(N,WallNormal)>.8f){Ledge=E;WallNormal=N;SetActorLocation(Ledge+WallNormal*48-FVector(0,0,100),true);}
+        }
+    } else if(Traversal==ETraversalState::Walking&&GetCharacterMovement()->IsFalling()&&GetVelocity().Z<100&&LedgeCooldown<=0&&!bJournal)BeginHang();
 }

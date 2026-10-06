@@ -24,13 +24,17 @@ Actual Unreal Engine captures from the current island level.
 
 ## Character animations
 
-Climbing includes a grab transition, alternating hand and foot reaches, weight shifts during vertical and sideways movement, a crouched rooftop pull-up, and a reverse transition for descending from the roof. Hand and foot targets are solved against the wall in real time.
+The [action system upgrade plan](Docs/ACTION_SYSTEM_PLAN.md) records the implementation stages and remaining animation dependencies.
+
+Climbing includes a grab transition, alternating hand and foot reaches, weight shifts during vertical and sideways movement, a crouched rooftop pull-up, and a reverse transition for descending from the roof. Holding a direction chains adjacent holds without a per-hold pause. Brief commands and reversals are buffered until the next contact; releasing finishes the current reach. Wall traces select reachable foot contacts, and body correction keeps supporting limbs within reach.
 
 ![Animated climbing: upward reach, sideways traverse, rooftop mantle, and descent](Docs/Images/climbing-animation.gif)
 
-Pistol and rifle fire use the official UE mannequin animation sequences, blended into the upper body over the existing locomotion pose. The weapon follows the animated hand; successive rifle shots retrigger recoil, and recovery blends back into movement. Aim elevation follows the camera.
+Pistol and rifle fire use the official UE mannequin animation sequences, blended into the upper body over the existing locomotion pose. The weapon follows the animated hand; successive rifle shots retrigger recoil, and recovery blends back into movement. Aim elevation follows the camera. Official reload and equip clips share the upper-body layer; eight-direction walk/jog clips follow the actual movement direction during armed movement. The gait phase follows distance travelled. Consecutive shots crossfade recoil instead of resetting the arm pose.
 
-![Official pistol and rifle firing animations in the game](Docs/Images/firing-animation.gif)
+Full-body action transitions retain the outgoing pose and velocity with critically damped offsets evaluated before contact IK. A single visible mesh and permanent weapon socket carry movement, traversal, and combat. Ground acceleration, braking, speed changes, and camera-facing rotation are smoothed.
+
+![Moving fire, reload, and official weapon actions in the game](Docs/Images/firing-animation.gif)
 
 ## Getting started
 
@@ -102,7 +106,7 @@ Then execute `Scripts/setup_scene.py` through Unreal's **Tools → Execute Pytho
 | [`ExplorerPoseComponent.cpp`](Source/LostExpedition/ExplorerPoseComponent.cpp) | Update the visible action pose after locomotion bones are evaluated |
 | [`create_island_materials.py`](Scripts/create_island_materials.py) | Blended sand and rock, shallow water, shoreline foam, and vegetation materials |
 
-The recorded runtime results are in the [test report](Docs/runtime-test.txt). Checks cover the continuous beach-to-tower route, every handhold transfer, supporting-hand motion, blocked reaches, animated rooftop ascent and descent, firearm animation triggers and recovery, weapon attachment, damage, items, and saves. These results apply to the configured local project; run the checks again after restoring assets in a fresh clone.
+The recorded runtime results are in the [test report](Docs/runtime-test.txt). Checks cover the continuous beach-to-tower route, every handhold transfer, supporting-hand and wall-foot contact error, 30/60/120 Hz chaining, buffered taps and reversals, release continuity, blocked reaches, animated rooftop ascent and descent, firearm animation triggers and recoil continuity, moving aim, reload/equip actions, weapon attachment, damage, items, and saves. These results apply to the configured local project; run the checks again after restoring assets in a fresh clone.
 
 For repeatable screenshots, run `Scripts/editor_view.py` at editor startup with `-AdventureCapture -AdventureCaptureExit`. It writes the full-resolution island views to `Docs/`. Launching the game with `-WatchtowerVisualReview` captures a real wall-gripping state to `Docs/tower-gameplay.png` and exits. Only the compressed copies in `Docs/Images/` are included in Git.
 
@@ -110,4 +114,4 @@ For repeatable screenshots, run `Scripts/editor_view.py` at editor startup with 
 
 ## Current scope
 
-This is a single-player adventure prototype using the UE mannequin and procedural climbing animation. Full motion-captured climbing animation, rope swinging, audio, and cinematic sequences are not implemented. External asset sources and restoration instructions are listed in [Docs/ASSETS.md](Docs/ASSETS.md).
+This is a single-player adventure prototype using the UE mannequin and procedural climbing animation. Climbing still uses generated limb poses rather than authored motion capture. Motion Matching/Pose Search and root-motion Motion Warping are not active: Epic Game Animation Sample has not been downloaded, and its Fab acquisition requires account login. The current ground system uses the template animation blueprint plus directional weapon clips. Rope swinging, audio, and cinematic sequences are not implemented. External asset sources and restoration instructions are listed in [Docs/ASSETS.md](Docs/ASSETS.md).

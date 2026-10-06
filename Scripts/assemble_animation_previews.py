@@ -6,7 +6,7 @@ project = Path(__file__).resolve().parents[1]
 source = project / 'Docs/AnimationFrames'
 output = project / 'Docs/Images'
 output.mkdir(exist_ok=True)
-for name, start, end in [('climbing-animation', 0, 160), ('firing-animation', 160, 240)]:
+for name, start, end in [('climbing-animation', 0, 160), ('firing-animation', 160, 330)]:
     paths = [source / f'{index:04d}.png' for index in range(start, end, 2)]
     missing = [path.name for path in paths if not path.is_file()]
     if missing:

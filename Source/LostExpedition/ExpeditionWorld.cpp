@@ -20,6 +20,12 @@ AExpeditionWorld::AExpeditionWorld() {
 }
 float AExpeditionWorld::GroundHeight(float X,float Y) const{return IslandTerrain::Height(X,Y);}
 void AExpeditionWorld::OnConstruction(const FTransform& T) { Super::OnConstruction(T); RebuildScene(); }
+void AExpeditionWorld::BeginPlay() {
+    Super::BeginPlay();
+    // Existing generated maps keep their serialized components. Add the contact
+    // surface tag without rebuilding the island or replacing the user's edits.
+    for(auto Part:Pieces)if(Part&&Part->GetName().StartsWith(TEXT("TowerWestWall")))Part->ComponentTags.AddUnique(TEXT("Climbable"));
+}
 UStaticMeshComponent* AExpeditionWorld::Shape(const FString& Name,const FString& Mesh,FVector P,FVector S,FLinearColor C,FRotator R,bool Collision,bool Climb) {
     auto* Part=NewObject<UStaticMeshComponent>(this,*FString::Printf(TEXT("%s_%d"),*Name,Pieces.Num()));
     Part->CreationMethod=EComponentCreationMethod::UserConstructionScript; Part->SetupAttachment(RootComponent);
@@ -119,7 +125,7 @@ void AExpeditionWorld::RebuildScene() {
     // The climbable ruin is the high point. It has real openings, a missing roof and a broken crown.
     const FVector T=ExpeditionTower::Base;const float Top=ExpeditionTower::SummitZ();
     Block(TEXT("TowerFoundation"),T-FVector(0,0,45),FVector(1180,1130,90));
-    Block(TEXT("TowerWestWall"),T+FVector(-440,0,1400),FVector(120,1000,2800));
+    Block(TEXT("TowerWestWall"),T+FVector(-440,0,1400),FVector(120,1000,2800))->ComponentTags.Add(TEXT("Climbable"));
     for(int L=0;L<3;L++) {
         const float B=T.Z+L*900;
         for(int SX:{-1,1})for(int SY:{-1,1}) {

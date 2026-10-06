@@ -1,5 +1,5 @@
 Lost Expedition runtime smoke test
-73 checks; 0 failures
+94 checks; 0 failures
 
 PASS: Continuous island terrain generated with collision
 PASS: Tropical palms, canopy trees and dense grass are instanced
@@ -13,6 +13,22 @@ PASS: Grab the first stone handle from the ground
 PASS: Intermediate wall handles cannot be used as walkable platforms
 PASS: Procedural wall pose lifts the hands to the stone grip
 PASS: Obstructed wall reach is rejected
+PASS: Held climb chains four transfers without an idle frame at 30 Hz
+PASS: Release finishes the current reach and cancels further held movement
+PASS: Held climb chains four transfers without an idle frame at 60 Hz
+PASS: Release finishes the current reach and cancels further held movement
+PASS: Held climb chains four transfers without an idle frame at 120 Hz
+PASS: Release finishes the current reach and cancels further held movement
+PASS: 30 and 120 Hz traversal paths agree within four centimetres
+PASS: Solved planted foot remains within eight centimetres of its wall contact
+PASS: Solved support hand stays within eight centimetres of its planted contact
+PASS: A brief direction tap during a reach buffers one next transfer
+PASS: Buffered tap executes once and does not repeat
+PASS: Reverse input queues a descent at the next contact
+PASS: Queued reversal returns to the previous handhold
+PASS: Journal cancels buffered and held traversal commands
+PASS: Releasing mid-reach preserves the body position and velocity when replanning
+PASS: Buffered Space enters the rooftop mantle at contact and carries only the remaining timestep
 PASS: Climb animation moves one hand ahead of the supporting hand
 PASS: Reaching shows the animated climbing mesh and stows the weapon
 PASS: Collision-safe handhold transfer 01 / 22
@@ -46,20 +62,25 @@ PASS: Summit checkpoint can be reached and interacted with
 PASS: Enter the top handhold from the roof edge to climb back down
 PASS: Reverse mantle clears the roof collision before lowering the character
 PASS: Descend between wall grips with S
-PASS: Drop releases the wall and restores the normal character mesh
+PASS: Drop restores gravity while retaining one presentation mesh and weapon socket
 PASS: Official pistol and rifle pose and firing sequences load
 PASS: Fire consumes one round
 PASS: Hitscan damages skeletal guard
 PASS: Successful pistol shot animates the upper body over the aiming pose
 PASS: Weapon follows the animated hand socket
 PASS: Fire rate blocks both extra rounds and animation retriggers
-PASS: Firing animation recovers and blends back into locomotion
+PASS: Firing animation recovers into locomotion without switching meshes
+PASS: Reload plays the official left-hand action while the weapon socket stays attached
 PASS: Reload clamps to available reserve
 PASS: Empty reserve rejects reload
 PASS: Weapon swap uses official rifle mesh
+PASS: Rifle selection starts the official equip action
 PASS: Rifle aiming animation keeps the barrel aligned with the camera
 PASS: Upper-body firearm animation preserves the locomotion foot pose
+PASS: Both weapons load eight official walk and jog directions
+PASS: Moving aim selects distinct strafe and backward foot poses
 PASS: Automatic rifle fire repeatedly triggers the rifle recoil animation
+PASS: Rifle recoil retrigger preserves the outgoing arm pose before crossfading
 PASS: Pistol selection uses official pistol mesh
 PASS: Medkit heals and is consumed
 PASS: No free healing with empty inventory
@@ -74,3 +95,5 @@ PASS: Complete expedition
 PASS: Checkpoint save roundtrip
 PASS: Death returns to checkpoint
 PASS: Grenade applies radial damage
+
+Fixed-step contact metrics: support hand 0.000 cm; planted foot 0.000 cm; 30/120 Hz body path difference 0.000 cm.

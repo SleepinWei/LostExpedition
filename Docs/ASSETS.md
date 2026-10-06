@@ -55,7 +55,7 @@ python3 Scripts/restore_engine_assets.py --engine "/Users/Shared/Epic Games/UE_5
 
 脚本会检查源目录是否存在。UE 资源按其自身条款使用，不包含在公开仓库中。
 
-角色开火动画复用上述 `High/Characters/Content` 中的官方序列：
+角色武器动画与持枪步态复用上述 `High/Characters/Content` 中的官方序列：
 
 | Unreal 路径 | 用途 |
 | --- | --- |
@@ -63,8 +63,15 @@ python3 Scripts/restore_engine_assets.py --engine "/Users/Shared/Epic Games/UE_5
 | `/Game/Characters/Mannequins/Anims/Pistol/MM_Pistol_Fire` | 手枪后坐力，Mesh Space Additive |
 | `/Game/Characters/Mannequins/Anims/Rifle/MF_Rifle_Idle_ADS` | 步枪瞄准基础姿态 |
 | `/Game/Characters/Mannequins/Anims/Rifle/MM_Rifle_Fire` | 步枪后坐力，Mesh Space Additive |
+| `/Game/Characters/Mannequins/Anims/{Pistol,Rifle}/MM_{Pistol,Rifle}_Reload` | 非叠加换弹动作，按玩法换弹时长播放 |
+| `/Game/Characters/Mannequins/Anims/{Pistol,Rifle}/MM_{Pistol,Rifle}_Equip` | 非叠加拔枪动作 |
+| `/Game/Characters/Mannequins/Anims/{Pistol,Rifle}/{Walk,Jog}/MF_*` | 各武器八方向步行与慢跑，共 32 个序列 |
 
 `restore_engine_assets.py` 已包含这些序列及其骨骼依赖。攀爬动画由 `ExplorerAnimation.cpp` 在运行时生成，不需要额外下载攀爬动作文件。压缩 GIF 是本工程实机动作捕获，源帧不上传。
+
+`Scripts/inspect_action_upgrade_assets.py` 可在 Unreal 中运行，检查本地动作长度、叠加类型、根运动设置与骨骼依赖。八方向步态按角色局部速度混合相邻方向，并使用移动距离推进公共周期；这不是 Motion Matching。
+
+后续完整 Motion Matching 的免费素材来源为 [Epic Game Animation Sample](https://www.fab.com/listings/880e319a-a59e-4ed2-b268-b32dac7fa016)。本次尚未下载或迁移该示例；当前项目没有它的 Pose Search 数据库或正式攀爬动作。需要用户在 Fab 完成 Epic 登录，将免费示例加入素材库，随后通过 Epic Launcher 下载、迁移依赖并建立匹配角色骨骼的数据库。下载本身不会启用 Motion Matching；仍需按[升级计划](ACTION_SYSTEM_PLAN.zh-CN.md)接入并验证。整个示例及生成数据库继续留在本地。
 
 ## 恢复步骤
 

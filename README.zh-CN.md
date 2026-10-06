@@ -24,13 +24,17 @@ UE 5.8.3 原生 C++ 第三人称冒险原型。当前关卡为热带海岛：低
 
 ## 角色动画
 
-攀爬包含抓握过渡、交替换手与抬脚、上攀和横移时的重心移动、屈身撑上塔顶，以及从塔顶反向下攀。手脚目标在运行时根据塔墙位置求解。
+[动作系统升级计划](Docs/ACTION_SYSTEM_PLAN.zh-CN.md)记录了实施步骤和仍需接入的动画素材。
+
+攀爬包含抓握过渡、交替换手与抬脚、上攀和横移时的重心移动、屈身撑上塔顶，以及从塔顶反向下攀。持续按方向可连续换把手；短按与反向输入在下一次接触时接续，松开后完成当前动作再停止。脚位通过墙面检测选择，身体位置按肢体可达范围修正。
 
 ![上攀、横移、登顶和下攀动画](Docs/Images/climbing-animation.gif)
 
-手枪和步枪分别使用 UE 官方 mannequin 开火动画，叠加到上半身并保留腿部行走。武器跟随动画后的手部，步枪连续开火会反复触发后坐力，动作结束后平滑回到移动姿态；瞄准高度随相机调整。
+手枪和步枪分别使用 UE 官方 mannequin 开火动画，叠加到上半身并保留腿部行走。武器跟随动画后的手部，步枪连续开火会反复触发后坐力，动作结束后平滑回到移动姿态；瞄准高度随相机调整。官方换弹与拔枪动作接入上半身层；持枪时按实际速度方向混合八方向步行、慢跑，移动距离推进步态周期。连续射击会混合前后两次后坐力，避免重置手臂姿态。
 
-![游戏中的手枪和步枪开火动画](Docs/Images/firing-animation.gif)
+全身切换保留前一姿态及运动速度，以临界阻尼衰减偏移，再求解手脚接触。移动、攀爬与战斗共用一个可见网格和固定武器挂点。地面加速、制动、速度切换与朝向相机的转身也做了平滑处理。
+
+![游戏中的移动开火、换弹与武器动作](Docs/Images/firing-animation.gif)
 
 ## 启动与素材
 
@@ -88,7 +92,7 @@ Mac 脚本默认使用 `/Users/Shared/Epic Games/UE_5.8`。其他平台使用对
 - `ExplorerPoseComponent.cpp`：在行走骨骼更新后计算可见动作姿态。
 - `Scripts/create_island_materials.py`：沙滩/岩壁混合、浅海、浪花与丛林材质。
 
-运行结果见 [测试报告](Docs/runtime-test.txt)，覆盖沙滩至塔下的连续通行、全部把手换手、支撑手动作、阻挡、登顶下攀动画、开火动画触发与恢复、武器挂接、伤害、道具和存档。该结果来自已配置素材的本机工程；新克隆恢复素材后应重新运行检查。
+运行结果见 [测试报告](Docs/runtime-test.txt)，覆盖沙滩至塔下的连续通行、全部把手换手、支撑手脚误差、30/60/120 Hz 连续换手、短按缓存、反向与松开后的运动连续性、阻挡、登顶下攀动画、后坐力接续、移动瞄准、换弹拔枪及武器挂接、伤害、道具和存档。该结果来自已配置素材的本机工程；新克隆恢复素材后应重新运行检查。
 
 本机预览为 `Docs/island-overview.png`、`island-beach.png`、`island-tower.png` 和 `island-grips.png`。编辑器启动时执行 `Scripts/editor_view.py` 并增加 `-AdventureCapture -AdventureCaptureExit` 可重新生成。`-WatchtowerVisualReview` 会进入真实抓边状态，生成 `Docs/tower-gameplay.png` 后退出。
 
@@ -96,4 +100,4 @@ Git 中仅包含 `Docs/Images/` 下的压缩预览副本。
 
 `Scripts/AnimationReview.command` 会将固定时间步长的动画帧保存到 `Docs/AnimationFrames/`。使用安装了 Pillow 的 Python 运行 `Scripts/assemble_animation_previews.py` 可生成小体积 GIF；原始帧保留在本地。
 
-当前仍是单人冒险原型：使用 UE mannequin 和程序化攀爬动画，尚无完整动捕攀爬动画、绳索摆荡、声音和电影演出。资源来源见 [素材说明](Docs/ASSETS.md)。
+当前仍是单人冒险原型。攀爬使用程序生成的肢体姿态，尚无正式动捕攀爬。Motion Matching / Pose Search 与根运动 Motion Warping 尚未启用：Epic Game Animation Sample 仍需 Fab 登录与下载。本版地面移动采用模板动画蓝图和方向武器动画。绳索摆荡、声音与电影演出仍未实现。资源来源见 [素材说明](Docs/ASSETS.md)。

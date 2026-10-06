@@ -44,13 +44,29 @@ public:
     static constexpr float GripTransferDuration=.76f, RoofEntryDuration=1.10f, MantleDuration=1.10f;
     int32 CurrentGrip=-1, TargetGrip=-1;
     float ReachTime=0, GripCooldown=0;
+    float ReachDuration=GripTransferDuration;
+    FVector ReachStartVelocity=FVector::ZeroVector, TraversalVelocity=FVector::ZeroVector;
+    FVector ReachEndVelocity=FVector::ZeroVector;
+    float ReachCurveStartTime=0;
+    int32 ReachCurveNextGrip=-2;
+    FVector2D BufferedTraversalInput=FVector2D::ZeroVector;
+    float TraversalBufferRemaining=0;
+    int32 QueuedGrip=-1;
+    bool bBufferedMantle=false;
     bool bEnteringFromRoof=false;
     FVector ReachStart;
     bool bLeadRight=true;
     float GrabTime=1, AnimationClock=0, ArmAnimationAlpha=0, FireAnimationTime=-1;
+    float PreviousFireAnimationTime=-1,FireBlendTime=1;
     FVector GrabHands[2],GrabFeet[2],AnimatedHands[2],AnimatedFeet[2];
     UPROPERTY() TArray<TObjectPtr<class UAnimSequence>> WeaponIdleAnimations;
     UPROPERTY() TArray<TObjectPtr<class UAnimSequence>> WeaponFireAnimations;
+    UPROPERTY() TArray<TObjectPtr<class UAnimSequence>> WeaponReloadAnimations;
+    UPROPERTY() TArray<TObjectPtr<class UAnimSequence>> WeaponEquipAnimations;
+    // Weapon, gait, then eight directions clockwise from forward.
+    UPROPERTY() TArray<TObjectPtr<class UAnimSequence>> ArmedLocomotionAnimations;
+    float LocomotionPhase=0;
+    float EquipAnimationTime=-1, ReloadDuration=0;
     UPROPERTY(VisibleAnywhere) TObjectPtr<class UPoseableMeshComponent> ClimbPose;
     bool BeginHang(); bool BeginMantle(); void Respawn(); void SaveCheckpoint();
     bool ReceiveLoot(AExpeditionLoot* Loot);
@@ -82,6 +98,11 @@ public:
     void RunSmokeTest();
 private:
     float ForwardInput=0, RightInput=0;
+    FVector2D PreviousTraversalInput=FVector2D::ZeroVector;
+    int32 FindGrip(int32 From,const FVector2D& Input) const;
+    bool StartGripTransfer(int32 Candidate);
+    void UpdateTraversal(float DeltaTime);
+    void ClearTraversalInput();
     void Equip(int32 Index);
     void RefreshLoot();
     void BeginGrabAnimation();

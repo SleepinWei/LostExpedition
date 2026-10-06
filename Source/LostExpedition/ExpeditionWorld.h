@@ -9,6 +9,7 @@ class LOSTEXPEDITION_API AExpeditionWorld : public AActor {
 public:
     AExpeditionWorld();
     virtual void OnConstruction(const FTransform& Transform) override;
+    virtual void BeginPlay() override;
     UFUNCTION(CallInEditor, BlueprintCallable, Category="Expedition") void RebuildScene();
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Expedition") int32 Seed=42;
     UFUNCTION(BlueprintCallable, Category="Island") float GroundHeight(float X,float Y) const;

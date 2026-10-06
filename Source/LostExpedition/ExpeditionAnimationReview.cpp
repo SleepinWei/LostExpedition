@@ -42,10 +42,12 @@ void AExpeditionGameMode::CaptureAnimationFrame() {
             P->Drop();P->Traversal=ETraversalState::Walking;P->SetActorLocation(ExpeditionTower::HangPosition(Index)+ExpeditionTower::WallNormal*40);
             P->SetActorRotation(FRotator::ZeroRotator);P->LedgeCooldown=0;P->BeginHang();
         };
-        if(Frame==0)Grip(4);
-        if(Frame==8){P->GripCooldown=0;P->MoveWallGrip(0,1);}
+        if(Frame==0)Grip(1);
+        if(Frame==8){P->GripCooldown=0;P->Forward(1);}
+        if(Frame==36)P->Forward(0);
         if(Frame==40)Grip(8);
-        if(Frame==48){P->GripCooldown=0;P->MoveWallGrip(1,0);}
+        if(Frame==48){P->GripCooldown=0;P->Right(1);}
+        if(Frame==72)P->Right(0);
         if(Frame==80)Grip(ExpeditionTower::Steps-1);
         if(Frame==88)P->BeginMantle();
         if(Frame==120) {
@@ -54,15 +56,21 @@ void AExpeditionGameMode::CaptureAnimationFrame() {
             P->SetActorRotation(FRotator(0,180,0));P->LedgeCooldown=0;P->BeginHang();
         }
         if(Frame==150){P->GripCooldown=0;P->MoveWallGrip(0,-1);}
-        if(Frame==160||Frame==200) {
+        if(Frame==160||Frame==200||Frame==240||Frame==280) {
             P->Drop();P->Traversal=ETraversalState::Walking;P->GetCharacterMovement()->SetMovementMode(MOVE_Walking);
             P->SetActorLocation(ExpeditionTower::Start()+FVector(-300,0,0));P->SetActorRotation(FRotator::ZeroRotator);
-            P->Weapon=Frame==160?0:1;Frame==160?P->Pistol():P->Rifle();P->Magazine[P->Weapon]=P->Capacity[P->Weapon];
+            P->Weapon=Frame==160||Frame==240?0:1;P->Weapon==0?P->Pistol():P->Rifle();P->Magazine[P->Weapon]=P->Capacity[P->Weapon];
             P->ShotCooldown=0;P->FireAnimationTime=-1;P->bAim=true;P->bFiring=false;P->LedgeCooldown=100;
             if(auto* PC=Cast<APlayerController>(P->GetController()))PC->SetControlRotation(FRotator::ZeroRotator);
         }
         if(Frame==168||Frame==180||Frame==192)P->FireShot();
         if(Frame==208)P->StartFire();if(Frame==236)P->StopFire();
+        if(Frame==245||Frame==285){P->Magazine[P->Weapon]=0;P->Reserve[P->Weapon]=60;P->Reload();}
+        if(Frame>=160&&Frame<240) {
+            const float Time=(Frame%40)/24.f;
+            P->GetCharacterMovement()->Velocity=FVector(0,140,0);
+            const FVector At=ExpeditionTower::Start()+FVector(-300,Time*140,0);P->SetActorLocation(At);
+        } else if(Frame>=240)P->GetCharacterMovement()->Velocity=FVector::ZeroVector;
         P->Tick(1.f/24);P->UpdateClimbPose();
         const FVector Body=P->GetActorLocation();
         const FVector Center=Frame<160&&P->ClimbPose->IsVisible()?P->ClimbPose->GetBoneLocationByName(TEXT("pelvis"),EBoneSpaces::WorldSpace)+FVector(0,0,20):Body+FVector(0,0,10);
@@ -72,7 +80,7 @@ void AExpeditionGameMode::CaptureAnimationFrame() {
         FScreenshotRequest::RequestScreenshot(FPaths::ConvertRelativePathToFull(FPaths::ProjectDir()/FString::Printf(TEXT("Docs/AnimationFrames/%04d.png"),Frame)),true,false);
     }
     AnimationReviewFrame++;
-    if(AnimationReviewFrame>=240) {
+    if(AnimationReviewFrame>=330) {
         GetWorldTimerManager().SetTimer(AnimationReviewTimer,FTimerDelegate::CreateWeakLambda(this,[](){FPlatformMisc::RequestExit(false);}),1.f,false);
     } else GetWorldTimerManager().SetTimer(AnimationReviewTimer,this,&AExpeditionGameMode::CaptureAnimationFrame,.16f,false);
 }
