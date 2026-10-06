@@ -2,6 +2,7 @@
 #include "ExplorerCharacter.h"
 #include "ExpeditionActors.h"
 #include "ExpeditionTower.h"
+#include "IslandTerrain.h"
 #include "Engine/Canvas.h"
 #include "Engine/Engine.h"
 #include "EngineUtils.h"
@@ -21,9 +22,9 @@ void AExpeditionGameMode::BeginPlay() {
         FTimerHandle Start;
         GetWorldTimerManager().SetTimer(Start,FTimerDelegate::CreateWeakLambda(this,[this](){
             if(TActorIterator<AExplorerCharacter> It(GetWorld());It) {
-                It->SetActorLocation(FVector(6530,-2070,725));It->SetActorRotation(FRotator(0,-90,0));
-                if(auto* PC=Cast<APlayerController>(It->GetController()))PC->SetControlRotation(FRotator(10,-90,0));
-                It->Notify(TEXT("SEA WATCHTOWER / Follow the pale lips. E grabs; SPACE climbs."));
+                It->SetActorLocation(ExpeditionTower::Start());It->SetActorRotation(FRotator::ZeroRotator);
+                if(auto* PC=Cast<APlayerController>(It->GetController()))PC->SetControlRotation(FRotator(16,0,0));
+                It->Notify(TEXT("RUINED TOWER / E grabs / W S climb / A D traverse / SPACE tops out"));
             }
         }),.5f,false);
     }
@@ -33,12 +34,12 @@ void AExpeditionGameMode::BeginPlay() {
         GetWorldTimerManager().SetTimer(Review,FTimerDelegate::CreateWeakLambda(this,[this,TowerReview](){
             for(TActorIterator<AExpeditionGuard> It(GetWorld());It;++It)It->bTrainingTarget=true;
             if(TActorIterator<AExplorerCharacter> It(GetWorld());It) {
-                It->SetActorLocation(FVector(3520,0,740));It->SetActorRotation(FRotator::ZeroRotator);
-                if(auto* PC=Cast<APlayerController>(It->GetController()))PC->SetControlRotation(FRotator(5,0,0));
+                It->SetActorLocation(FVector(-7200,-4500,IslandTerrain::Height(-7200,-4500)+105));It->SetActorRotation(FRotator::ZeroRotator);
+                if(auto* PC=Cast<APlayerController>(It->GetController()))PC->SetControlRotation(FRotator(8,28,0));
                 if(TowerReview) {
-                    It->SetActorLocation(FVector(6650,-3800,1519));It->SetActorRotation(FRotator::ZeroRotator);
+                    It->SetActorLocation(ExpeditionTower::HangPosition(4)+ExpeditionTower::WallNormal*40);It->SetActorRotation(FRotator::ZeroRotator);
                     It->LedgeCooldown=0;It->BeginHang();
-                    if(auto* PC=Cast<APlayerController>(It->GetController()))PC->SetControlRotation(FRotator(9,28,0));
+                    if(auto* PC=Cast<APlayerController>(It->GetController()))PC->SetControlRotation(FRotator(12,30,0));
                 }
             }
             FTimerHandle Capture,Close;
@@ -61,15 +62,15 @@ void AExpeditionHUD::DrawHUD() {
     auto Text=[&](const FString& T,float X,float Y,FLinearColor C,float Scale=1.f){DrawText(T,C,X,Y,GEngine->GetSmallFont(),Scale*S);};
     DrawRect(Ink,25*S,25*S,420*S,132*S);DrawRect(Gold,25*S,25*S,4*S,132*S);
     Text(TEXT("LOST EXPEDITION"),45*S,40*S,Gold,1.65);
-    Text(TEXT("01  /  CLIFF SANCTUARY"),45*S,69*S,Dim,.95);
+    Text(TEXT("01  /  PALM ISLAND"),45*S,69*S,Dim,.95);
     FString Objective;
-    if(!P->bHasKey)Objective=P->GetActorLocation().X<1600?TEXT("Climb the pale limestone ledges"):TEXT("Cross the bridge / find the courtyard key");
-    else if(!P->bGateOpen)Objective=TEXT("Use the key at the sanctuary gate");
-    else Objective=TEXT("Collect 3 relics / reach the exit beacon");
+    if(!P->bHasKey)Objective=P->GetActorLocation().X<1600?TEXT("Follow the forest trail to the highland"):TEXT("Explore the island / find the tower key");
+    else if(!P->bGateOpen)Objective=TEXT("Use the key at the tower doorway");
+    else Objective=TEXT("Collect 3 relics / return to the beach");
     const FVector Position=P->GetActorLocation();
-    if(Position.X>6200&&Position.X<8500&&Position.Y<-1750) {
-        const float Height=FMath::Clamp((Position.Z-96-ExpeditionTower::Base.Z)/100.f,0.f,42.f);
-        Objective=Height>41.5f?TEXT("WATCHTOWER SUMMIT / save at the beacon"):FString::Printf(TEXT("SEA WATCHTOWER  %.0f / 42 m  /  follow pale ledges"),Height);
+    if(FVector::Dist2D(Position,ExpeditionTower::Base)<1200) {
+        const float Height=FMath::Clamp((Position.Z-96-ExpeditionTower::Base.Z)/100.f,0.f,28.f);
+        Objective=Height>27.5f?TEXT("RUINED TOWER SUMMIT / save at the beacon"):FString::Printf(TEXT("TOWER WALL  %.0f / 28 m  /  follow stone grips"),Height);
     }
     Text(Objective,45*S,98*S,White,1.05);
     Text(FString::Printf(TEXT("RELICS  %d / 3     KEY  %s"),P->Relics,P->bHasKey?TEXT("FOUND"):TEXT("--")),45*S,125*S,Gold,.95);
@@ -83,10 +84,13 @@ void AExpeditionHUD::DrawHUD() {
     Text(TEXT("WASD move  /  SHIFT sprint  /  SPACE jump & climb  /  E interact  /  TAB journal"),W*.5f-345*S,H-28*S,Dim,.85);
     if(P->Traversal!=ETraversalState::Walking) {
         DrawRect(Ink,W*.5f-230*S,H*.68f,460*S,44*S);
-        Text(P->Traversal==ETraversalState::Hanging?TEXT("A / D  shimmy    SPACE climb up    CTRL drop"):TEXT("CLIMBING"),W*.5f-210*S,H*.68f+14*S,Gold,1.05);
+        Text(P->Traversal==ETraversalState::Clinging||P->Traversal==ETraversalState::Reaching?TEXT("W S climb / A D traverse / SPACE top out / CTRL drop"):P->Traversal==ETraversalState::Hanging?TEXT("A / D shimmy / SPACE climb up / CTRL drop"):TEXT("CLIMBING"),W*.5f-210*S,H*.68f+14*S,Gold,1.05);
     } else if(P->Nearby.IsValid()&&!P->bJournal) {
         FString Prompt=TEXT("[E]  ")+P->Nearby->Prompt();float TW,TH;GetTextSize(Prompt,TW,TH,GEngine->GetSmallFont(),1.2*S);
         DrawRect(Ink,W/2-TW/2-18,H*.68f,TW+36,40*S);Text(Prompt,W/2-TW/2,H*.68f+12*S,Gold,1.2);
+    }
+    if(P->Traversal==ETraversalState::Walking&&FMath::Abs(Position.Z-(ExpeditionTower::SummitZ()+99))<30&&FMath::Abs(Position.Y-ExpeditionTower::Grip(ExpeditionTower::Steps-1).Y)<110&&Position.X<ExpeditionTower::Base.X-290) {
+        DrawRect(Ink,W*.5f-245*S,H*.68f,490*S,44*S);Text(TEXT("Face the sea / [E] lower onto the wall handholds"),W*.5f-225*S,H*.68f+14*S,Gold,1.05);
     }
     if(P->NoticeRemaining>0){float TW,TH;GetTextSize(P->Notice,TW,TH,GEngine->GetSmallFont(),1.1*S);DrawRect(Ink,W/2-TW/2-16,180*S,TW+32,36*S);Text(P->Notice,W/2-TW/2,190*S,White,1.1);}
     if(P->bAim||P->bFiring){float X=W/2,Y=H/2;DrawLine(X-12,Y,X-4,Y,Gold,1.6);DrawLine(X+4,Y,X+12,Y,Gold,1.6);DrawLine(X,Y-12,X,Y-4,Gold,1.6);DrawLine(X,Y+4,X,Y+12,Gold,1.6);}
@@ -102,8 +106,8 @@ void AExpeditionHUD::DrawHUD() {
         DrawRect(FLinearColor(.01,.025,.022,.92),0,0,W,H);
         float X=W/2-340*S,Y=H/2-220*S;
         Text(P->bCompleted?TEXT("EXPEDITION COMPLETE"):TEXT("EXPLORER'S JOURNAL"),X,Y,Gold,2.4);
-        Text(TEXT("CLIFF SANCTUARY  /  an island beyond the charts"),X,Y+55*S,Dim,1.1);
-        TArray<FString> Lines=P->bCompleted?TArray<FString>{TEXT("You recovered all three relics and escaped the sanctuary."),TEXT("The lost expedition's trail lives on."),TEXT("F5  /  Start a fresh expedition")}:TArray<FString>{TEXT("01  Follow the pale ledges. E grabs; SPACE climbs up."),TEXT("02  Cross the suspension bridge. Save at the blue beacon."),TEXT("03  Clear the courtyard. Collect the key and two relics."),TEXT("04  Unlock the sanctuary. Recover the final relic."),TEXT("05  Find the exit beacon to finish the expedition."),TEXT("Optional: south courtyard path / climb the 42 m watchtower."),TEXT("RMB aim / LMB fire / 1-2 weapons / R reload"),TEXT("Q medkit / G grenade / CTRL drop / F5 fresh start"),TEXT("TAB  /  Return to the expedition")};
+        Text(TEXT("PALM ISLAND  /  an island beyond the charts"),X,Y+55*S,Dim,1.1);
+        TArray<FString> Lines=P->bCompleted?TArray<FString>{TEXT("You recovered all three relics and escaped the sanctuary."),TEXT("The lost expedition's trail lives on."),TEXT("F5  /  Start a fresh expedition")}:TArray<FString>{TEXT("01  Leave the beach. Follow the trail through the palms."),TEXT("02  Climb the forest trail to the central highland."),TEXT("03  Explore the jungle and recover the tower key."),TEXT("04  E grabs stone handles. W/S climb; A/D traverse."),TEXT("05  SPACE climbs onto the roof. Recover the final relic."),TEXT("06  Return to the beach beacon to finish the expedition."),TEXT("RMB aim / LMB fire / 1-2 weapons / R reload"),TEXT("Q medkit / G grenade / CTRL drop / F5 fresh start"),TEXT("TAB  /  Return to the expedition")};
         for(int I=0;I<Lines.Num();I++)Text(Lines[I],X,Y+(100+I*35)*S,White,1.15);
     }
 }

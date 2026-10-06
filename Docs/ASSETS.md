@@ -4,6 +4,8 @@
 
 ## 海岸扫描素材
 
+新海岛额外使用 [coast_sand_01](https://polyhaven.com/a/coast_sand_01) 的 2K Diffuse、Normal DX 与 Roughness。运行 `python3 Scripts/prepare_island_assets.py` 下载并校验，目标为 `/Game/Island/T_coast_sand_01_*_2k`。同一脚本生成原创椰子树 OBJ，导入目标为 `/Game/Island/SM_CoconutPalm`。生成文件位于被 Git 忽略的 `ArtSource/Island/` 和 `Content/Island/`。
+
 以下资源的来源页提供下载。海岸组由 `Scripts/download_coastal_assets.py` 下载 2K 文件并校验官方 API 提供的 MD5，再由 `Scripts/import_coastal_assets.py` 在 Unreal 内导入。
 
 | 素材链接 | 用途 | Unreal 目标 |
@@ -36,6 +38,8 @@ FBX 作为静态网格导入，启用 Combine Meshes，并重命名为表中的�
 
 ## Unreal 官方资源
 
+新海岛树木材质还会读取 `/Game/Textures/PolyHaven/` 下的 `T_island_tree_01_{diff,nor_dx,rough}_1k`、`T_island_tree_01_branches_{diff,nor_dx,rough}_1k`、`T_island_tree_01_leaves_{diff,nor_dx,rough,alpha}_1k`。手动导入时请保留准确名称；树网格的材质槽顺序应为树干、叶片、枝条。
+
 安装 [Unreal Engine](https://www.unrealengine.com/download) 5.8，并勾选引擎的模板资源。使用自己的引擎安装目录运行：
 
 ```sh
@@ -58,7 +62,8 @@ python3 Scripts/restore_engine_assets.py --engine "/Users/Shared/Epic Games/UE_5
 3. 下载并导入“植被和路面素材”中的四项必需资源，确保目标路径与名称完全一致。
 4. 在系统终端运行 `python3 Scripts/download_coastal_assets.py`，下载海岸模型和贴图。
 5. 在 Unreal 的 **Tools → Execute Python Script** 中执行 `Scripts/import_coastal_assets.py`。等待导入、材质和 LOD 处理完成。
-6. 在同一菜单执行 `Scripts/setup_scene.py`。此脚本会根据 C++ 场景生成逻辑建立材质和 `Content/Maps/CliffSanctuary.umap`，也会覆盖该生成地图上的手动修改。运行前请保存自己的修改。
-7. 打开生成的地图并 Play；Mac 可用 `Scripts/PlayTower.command` 直达塔下。运行 `Scripts/SmokeTest.command` 检查素材引用、连续攀爬及其他玩法。
+6. 在系统终端运行 `python3 Scripts/prepare_island_assets.py`，生成椰子树并下载沙滩材质。
+7. 在 Unreal 的同一菜单执行 `Scripts/setup_scene.py`。此脚本会生成海岛材质和 `Content/Maps/CliffSanctuary.umap`，也会覆盖该生成地图上的手动修改。运行前请保存自己的修改。
+8. 打开地图并 Play；Mac 可用 `Scripts/PlayTower.command` 直达塔下。运行 `Scripts/SmokeTest.command` 检查素材引用、连续攀爬及其他玩法。
 
-`ArtSource/CoastalRemake/weathered_block.obj`、`cliff_core.obj` 与 `.mtl` 是小体积的自制几何源文件，保留在 Git 中，由生成脚本导入。本机已恢复的版本通过 64 项运行检查；新克隆完成手动素材恢复后，应重新运行检查确认自己的导入结果。
+`ArtSource/CoastalRemake/weathered_block.obj`、`cliff_core.obj` 与 `.mtl` 是小体积的自制几何源文件，保留在 Git 中。当前岛体直接由 C++ 程序网格生成。最新运行结果见 `Docs/runtime-test.txt`；新克隆完成素材恢复后，应重新运行检查确认导入结果。

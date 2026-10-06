@@ -1,50 +1,49 @@
 Lost Expedition runtime smoke test
-64 checks; 0 failures
+63 checks; 0 failures
 
-PASS: Authored ruins and foliage generated
-PASS: Official UE tree integrated in inland slope
-PASS: Textured free grass replaces placeholder foliage
-PASS: PBR stone material applied to ruins
-PASS: Exactly one environment actor
-PASS: Suspension bridge supports character-sized collision
-PASS: Sanctuary stairs remain within character step height
-PASS: Grab ledge 1
-PASS: Start mantle 1
-PASS: Complete collision-safe mantle 1
-PASS: Grab ledge 2
-PASS: Shimmy along ledge
-PASS: Start mantle 2
-PASS: Complete collision-safe mantle 2
-PASS: Grab ledge 3
-PASS: Start mantle 3
-PASS: Complete collision-safe mantle 3
-PASS: Walk from courtyard through wall gap onto tower approach
-PASS: Tower continuous approach, grab and mantle 01 / 21
-PASS: Tower continuous approach, grab and mantle 02 / 21
-PASS: Tower continuous approach, grab and mantle 03 / 21
-PASS: Tower continuous approach, grab and mantle 04 / 21
-PASS: Tower continuous approach, grab and mantle 05 / 21
-PASS: Tower continuous approach, grab and mantle 06 / 21
-PASS: Tower continuous approach, grab and mantle 07 / 21
-PASS: Tower continuous approach, grab and mantle 08 / 21
-PASS: Tower continuous approach, grab and mantle 09 / 21
-PASS: Tower continuous approach, grab and mantle 10 / 21
-PASS: Tower continuous approach, grab and mantle 11 / 21
-PASS: Tower continuous approach, grab and mantle 12 / 21
-PASS: Tower continuous approach, grab and mantle 13 / 21
-PASS: Tower continuous approach, grab and mantle 14 / 21
-PASS: Tower continuous approach, grab and mantle 15 / 21
-PASS: Tower continuous approach, grab and mantle 16 / 21
-PASS: Tower continuous approach, grab and mantle 17 / 21
-PASS: Tower continuous approach, grab and mantle 18 / 21
-PASS: Tower continuous approach, grab and mantle 19 / 21
-PASS: Tower continuous approach, grab and mantle 20 / 21
-PASS: Tower continuous approach, grab and mantle 21 / 21
-PASS: Reach the open summit deck 42 metres above the entrance
-PASS: Summit checkpoint is visible and interactable
-PASS: All four tower checkpoints stand on collision-supported landings
-PASS: Blocked mantle rejected
-PASS: Drop releases ledge
+PASS: Continuous island terrain generated with collision
+PASS: Tropical palms, canopy trees and dense grass are instanced
+PASS: All tower stone handles are placed
+PASS: Exactly one island environment actor
+PASS: Low sandy coast and elevated central plateau
+PASS: Walk continuously from beach through jungle trail onto the highland
+PASS: Walk from highland to the first tower handhold
+PASS: Cannot grab a handhold while facing away
+PASS: Grab the first stone handle from the ground
+PASS: Intermediate wall handles cannot be used as walkable platforms
+PASS: Procedural wall pose lifts the hands to the stone grip
+PASS: Obstructed wall reach is rejected
+PASS: Collision-safe handhold transfer 01 / 22
+PASS: Collision-safe handhold transfer 02 / 22
+PASS: Collision-safe handhold transfer 03 / 22
+PASS: Collision-safe handhold transfer 04 / 22
+PASS: Collision-safe handhold transfer 05 / 22
+PASS: Collision-safe handhold transfer 06 / 22
+PASS: Collision-safe handhold transfer 07 / 22
+PASS: Horizontal gap requires a deliberate sideways reach
+PASS: Collision-safe handhold transfer 08 / 22
+PASS: Horizontal gap requires a deliberate sideways reach
+PASS: Collision-safe handhold transfer 09 / 22
+PASS: Collision-safe handhold transfer 10 / 22
+PASS: Collision-safe handhold transfer 11 / 22
+PASS: Collision-safe handhold transfer 12 / 22
+PASS: Collision-safe handhold transfer 13 / 22
+PASS: Collision-safe handhold transfer 14 / 22
+PASS: Collision-safe handhold transfer 15 / 22
+PASS: Collision-safe handhold transfer 16 / 22
+PASS: Collision-safe handhold transfer 17 / 22
+PASS: Collision-safe handhold transfer 18 / 22
+PASS: Collision-safe handhold transfer 19 / 22
+PASS: Collision-safe handhold transfer 20 / 22
+PASS: Collision-safe handhold transfer 21 / 22
+PASS: Collision-safe handhold transfer 22 / 22
+PASS: Start the final mantle from the top stone handle
+PASS: Stand on the ruined tower roof after climbing the entire wall
+PASS: Summit checkpoint can be reached and interacted with
+PASS: Enter the top handhold from the roof edge to climb back down
+PASS: Reverse mantle clears the roof collision before lowering the character
+PASS: Descend between wall grips with S
+PASS: Drop releases the wall and restores the normal character mesh
 PASS: Fire consumes one round
 PASS: Hitscan damages skeletal guard
 PASS: Fire rate enforced

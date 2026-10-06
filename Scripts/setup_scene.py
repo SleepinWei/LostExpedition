@@ -57,8 +57,8 @@ for name,(rgb,roughness) in palette.items():
 material_script=Path(unreal.Paths.project_dir())/'Scripts/create_coastal_materials.py'
 exec(compile(material_script.read_text(),str(material_script),'exec'))
 
-core_script=Path(unreal.Paths.project_dir())/'Scripts/import_cliff_core.py'
-exec(compile(core_script.read_text(),str(core_script),'exec'))
+island_script=Path(unreal.Paths.project_dir())/'Scripts/create_island_materials.py'
+exec(compile(island_script.read_text(),str(island_script),'exec'))
 
 levels=unreal.get_editor_subsystem(unreal.LevelEditorSubsystem)
 actors=unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
@@ -76,21 +76,22 @@ def spawn(cls, name, xyz, rot=None):
     return actor
 
 world_cls=unreal.load_class(None,'/Script/LostExpedition.ExpeditionWorld')
-world=spawn(world_cls,'Coastal sanctuary | cliff and fortress', (0,0,0))
+world=spawn(world_cls,'Palm island | beach, highland and ruined tower', (0,0,0))
 world.rebuild_scene()
-start=spawn(unreal.PlayerStart,'Expedition landing / player start',(-1950,0,110))
-sun=spawn(unreal.DirectionalLight,'Warm late-afternoon sun',(0,0,5000),unreal.Rotator(pitch=-32,yaw=40,roll=0))
+def ground(x,y,offset=0):return (x,y,world.ground_height(x,y)+offset)
+start=spawn(unreal.PlayerStart,'Beach landing / player start',ground(-7200,-4500,110))
+sun=spawn(unreal.DirectionalLight,'Warm late-afternoon sun',(0,0,5000),unreal.Rotator(pitch=-42,yaw=35,roll=0))
 light=sun.get_component_by_class(unreal.DirectionalLightComponent)
 light.set_mobility(unreal.ComponentMobility.MOVABLE)
 light.set_editor_property('atmosphere_sun_light',True)
-light.set_editor_property('intensity',36000)
+light.set_editor_property('intensity',42000)
 light.set_editor_property('light_color',unreal.Color(r=255,g=241,b=222,a=255))
-light.set_editor_property('light_source_angle',1.3)
+light.set_editor_property('light_source_angle',2.5)
 sky=spawn(unreal.SkyLight,'Ocean skylight',(0,0,1800))
 sc=sky.get_component_by_class(unreal.SkyLightComponent)
 sc.set_mobility(unreal.ComponentMobility.MOVABLE)
 sc.set_editor_property('real_time_capture',True)
-sc.set_editor_property('intensity',1.6)
+sc.set_editor_property('intensity',1.25)
 spawn(unreal.SkyAtmosphere,'Island sky',(0,0,0))
 cloud=spawn(unreal.VolumetricCloud,'Coastal cloud bank',(0,0,0))
 cc=cloud.get_component_by_class(unreal.VolumetricCloudComponent)
@@ -99,7 +100,7 @@ cc.set_editor_property('layer_bottom_altitude',2.0)
 cc.set_editor_property('layer_height',4.0)
 fog=spawn(unreal.ExponentialHeightFog,'Sea haze',(0,0,-600))
 fc=fog.get_component_by_class(unreal.ExponentialHeightFogComponent)
-fc.set_editor_property('fog_density',.026)
+fc.set_editor_property('fog_density',.012)
 fc.set_editor_property('fog_height_falloff',.12)
 fc.set_editor_property('start_distance',1000)
 pp=spawn(unreal.PostProcessVolume,'Adventure color grade',(0,0,0))
@@ -115,26 +116,21 @@ pp.set_editor_property('settings',settings)
 loot_cls=unreal.load_class(None,'/Script/LostExpedition.ExpeditionLoot')
 # Enum names are reflected from C++ and available to the Unreal Python runtime.
 items=[
- ('LandingAmmo','AMMO',(-1680,350,55),'Landing ammunition'),
- ('LandingMedkit','MEDKIT',(-1630,-340,45),'Landing medical supplies'),
- ('OutlookCheckpoint','CHECKPOINT',(1800,-320,650),'Outlook checkpoint'),
- ('OutlookRelic','RELIC',(2350,550,675),'Relic I / navigator seal'),
- ('OutlookAmmo','AMMO',(3100,-400,665),'Bridge ammunition'),
- ('CourtyardCheckpoint','CHECKPOINT',(5370,-790,650),'Courtyard checkpoint'),
- ('CourtyardAmmo','AMMO',(5640,-760,665),'Courtyard ammunition'),
- ('CourtyardMedkit','MEDKIT',(6020,-780,665),'Courtyard medkit'),
- ('CourtyardGrenade','GRENADE',(5790,680,665),'Courtyard grenade'),
- ('TowerBaseCheckpoint','CHECKPOINT',(6530,-2160,650),'Watchtower / save before climbing'),
- ('TowerMidCheckpoint','CHECKPOINT',(8250,-3800,2250),'Watchtower / 16 m checkpoint'),
- ('TowerUpperCheckpoint','CHECKPOINT',(6410,-2200,3850),'Watchtower / 32 m checkpoint'),
- ('TowerSummitCheckpoint','CHECKPOINT',(7330,-3000,4850),'Watchtower summit / 42 m reached / save'),
- ('TowerSummitAmmo','AMMO',(7520,-3060,4870),'Watchtower ammunition cache'),
- ('TowerSummitMedkit','MEDKIT',(7160,-2910,4860),'Watchtower medical cache'),
- ('SanctuaryKey','KEY',(6580,520,690),'Sanctuary key'),
- ('CourtyardRelic','RELIC',(6950,-740,675),'Relic II / captain seal'),
- ('SanctuaryGate','GATE',(8110,0,1100),'Sanctuary gate'),
- ('SanctuaryRelic','RELIC',(8750,-500,970),'Relic III / temple seal'),
- ('ExitBeacon','EXIT',(9620,0,865),'Expedition exit'),
+ ('BeachCheckpoint','CHECKPOINT',ground(-7170,-4220,30),'Beach camp / save checkpoint'),
+ ('BeachAmmo','AMMO',ground(-6910,-4380,100),'Beach ammunition'),
+ ('BeachMedkit','MEDKIT',ground(-6810,-4300,100),'Beach medical supplies'),
+ ('BeachRelic','RELIC',ground(-7620,-3870,65),'Relic I / castaway seal'),
+ ('ForestCheckpoint','CHECKPOINT',ground(-3420,-1900,30),'Forest trail / save checkpoint'),
+ ('ForestRelic','RELIC',ground(-3200,-1580,65),'Relic II / jungle seal'),
+ ('ForestAmmo','AMMO',ground(-3150,-1750,50),'Forest ammunition'),
+ ('HighlandKey','KEY',ground(2650,1550,55),'Tower key'),
+ ('HighlandGrenade','GRENADE',ground(2460,1480,60),'Highland grenade cache'),
+ ('TowerBaseCheckpoint','CHECKPOINT',ground(800,270,30),'Ruined tower / save before climbing'),
+ ('TowerGate','GATE',(2090,900,2470),'Unlock ruined tower doorway'),
+ ('TowerSummitCheckpoint','CHECKPOINT',(1600,900,5030),'Tower summit / save checkpoint'),
+ ('TowerRelic','RELIC',(1710,1160,5070),'Relic III / tower seal'),
+ ('TowerMedkit','MEDKIT',(1370,1220,5060),'Tower medical cache'),
+ ('ExitBeacon','EXIT',ground(-8000,-3830,45),'Return to the beach / finish expedition'),
 ]
 for identity,kind,xyz,title in items:
     a=spawn(loot_cls,title,xyz)
@@ -146,10 +142,9 @@ for identity,kind,xyz,title in items:
 
 guard_cls=unreal.load_class(None,'/Script/LostExpedition.ExpeditionGuard')
 for name,xyz,patrol,training in [
- ('Outlook training sentry',(2750,660,620),(0,0,0),True),
- ('Courtyard sentry A',(5900,620,620),(400,0,0),False),
- ('Courtyard sentry B',(6550,-400,620),(0,450,0),False),
- ('Courtyard sentry C',(7040,350,620),(-300,0,0),False),
+ ('Beach training sentry',ground(-6250,-3150),(0,0,0),True),
+ ('Highland sentry A',ground(2830,800),(0,350,0),False),
+ ('Highland sentry B',ground(2850,1450),(-250,0,0),False),
 ]:
     a=spawn(guard_cls,name,xyz,unreal.Rotator(pitch=0,yaw=90,roll=0))
     a.set_editor_property('patrol_offset',unreal.Vector(*patrol))
@@ -157,4 +152,4 @@ for name,xyz,patrol,training in [
 
 levels.save_current_level()
 unreal.EditorLoadingAndSavingUtils.save_dirty_packages(True,True)
-unreal.log('LOST_EXPEDITION_SETUP_SUCCESS: coastal remake saved')
+unreal.log('LOST_EXPEDITION_SETUP_SUCCESS: tropical island saved')

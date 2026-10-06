@@ -28,6 +28,10 @@
     {
       "Name": "AndroidFileServer",
       "Enabled": false
+    },
+    {
+      "Name": "ProceduralMeshComponent",
+      "Enabled": true
     }
   ]
 }

@@ -1,5 +1,8 @@
 #include "ExpeditionWorld.h"
 #include "ExpeditionTower.h"
+#include "IslandTerrain.h"
+#include "ProceduralMeshComponent.h"
+#include "Components/HierarchicalInstancedStaticMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 
@@ -9,7 +12,13 @@ const TCHAR* CliffMesh=TEXT("/Game/Coastal/Meshes/SM_coastal_cliff_02.SM_coastal
 const TCHAR* RockMesh=TEXT("/Game/Coastal/Meshes/SM_rock_07.SM_rock_07");
 const TCHAR* FernMesh=TEXT("/Game/Coastal/Meshes/SM_fern_02.SM_fern_02");
 }
-AExpeditionWorld::AExpeditionWorld() { RootComponent=CreateDefaultSubobject<USceneComponent>(TEXT("SceneRoot")); }
+AExpeditionWorld::AExpeditionWorld() {
+    RootComponent=CreateDefaultSubobject<USceneComponent>(TEXT("SceneRoot"));
+    Terrain=CreateDefaultSubobject<UProceduralMeshComponent>(TEXT("IslandTerrain"));Terrain->SetupAttachment(RootComponent);
+    Terrain->bUseComplexAsSimpleCollision=true;Terrain->SetCollisionResponseToChannel(ECC_Camera,ECR_Ignore);
+    Surf=CreateDefaultSubobject<UProceduralMeshComponent>(TEXT("ShoreWash"));Surf->SetupAttachment(RootComponent);Surf->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+}
+float AExpeditionWorld::GroundHeight(float X,float Y) const{return IslandTerrain::Height(X,Y);}
 void AExpeditionWorld::OnConstruction(const FTransform& T) { Super::OnConstruction(T); RebuildScene(); }
 UStaticMeshComponent* AExpeditionWorld::Shape(const FString& Name,const FString& Mesh,FVector P,FVector S,FLinearColor C,FRotator R,bool Collision,bool Climb) {
     auto* Part=NewObject<UStaticMeshComponent>(this,*FString::Printf(TEXT("%s_%d"),*Name,Pieces.Num()));
@@ -66,259 +75,126 @@ void AExpeditionWorld::Arch(FVector P,float Yaw) {
 void AExpeditionWorld::RebuildScene() {
     for(auto P:Pieces)if(IsValid(P))P->DestroyComponent();Pieces.Empty();
     FRandomStream R(Seed);
-    auto Block=[&](FString N,FVector P,FVector S,FRotator Rot=FRotator::ZeroRotator,bool Collide=true){return Shape(N,TEXT("Cube"),P,S,Stone,Rot,Collide);};
-    auto Trim=[&](FString N,FVector P,FVector S,FRotator Rot=FRotator::ZeroRotator){return Shape(N,TEXT("Cube"),P,S,Chalk,Rot);};
-    auto Ground=[&](FVector P,FVector S){return Shape(TEXT("MossAndEarth"),TEXT("Cube"),P,S,FLinearColor(.13,.24,.09));};
-    auto Beam=[&](FString N,FVector A,FVector B,float Width){FVector D=B-A;return Shape(N,TEXT("Cylinder"),(A+B)*.5,FVector(Width,Width,D.Size()),Wood,FRotationMatrix::MakeFromZ(D).Rotator(),false);};
-    auto Scan=[&](FString N,const TCHAR* Path,FVector Center,FVector Dimensions,FRotator Rot){
-        auto* C=Asset(N,Path,FVector::ZeroVector,100,Rot);if(!C)return C;
-        const auto B=C->GetStaticMesh()->GetBounds(); const FVector Scale=Dimensions/(B.BoxExtent*2);
-        C->SetRelativeScale3D(Scale);C->SetRelativeLocation(Center-Rot.RotateVector(B.Origin*Scale));
-        if(N.Contains(TEXT("Core")))C->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);return C;
-    };
-    // The collision route remains continuous. Thin surface geometry and scanned cliff faces
-    // replace the old visible rectangular pedestal walls.
-    auto Route=[&](FString N,FVector P,FVector S,bool Climb=false){auto* C=Shape(N,TEXT("Cube"),P,S,Rock,FRotator::ZeroRotator,true,Climb);return C;};
-    Shape(TEXT("OpenSea"),TEXT("Plane"),FVector(15000,0,-2600),FVector(4000000,4000000,100),FLinearColor(.03,.12,.55),FRotator::ZeroRotator,false);
-    Route(TEXT("Landing"),FVector(-1550,0,-200),FVector(1900,1900,400));
-    Route(TEXT("FirstClimb"),FVector(-350,0,0),FVector(700,1200,380),true);
-    Route(TEXT("SecondClimb"),FVector(370,0,90),FVector(760,1100,620),true);
-    Route(TEXT("ThirdClimb"),FVector(1130,0,150),FVector(760,1100,940),true);
-    for(auto P:{FVector(-705,0,180),FVector(-15,0,390),FVector(745,0,610)}) {
-        // Broken limestone seams are the diegetic traversal cue.
-        for(int J=-3;J<=3;J++)Shape(TEXT("WeatheredClimbSeam"),TEXT("Cube"),P+FVector(0,J*145,0),FVector(20,138,R.FRandRange(14,22)),Chalk,FRotator(0,0,R.FRandRange(-2,2)),false);
+    TArray<FVector> V,N;TArray<int32> Tri;TArray<FVector2D> UV;TArray<FLinearColor> Colors;TArray<FProcMeshTangent> Tangents;
+    constexpr int32 NX=141,NY=121;constexpr float Cell=200;
+    for(int32 J=0;J<NY;J++)for(int32 I=0;I<NX;I++) {
+        const float X=(I-(NX-1)*.5f)*Cell,Y=(J-(NY-1)*.5f)*Cell;
+        const FVector Normal=IslandTerrain::Normal(X,Y);const float H=GroundHeight(X,Y);
+        V.Add(FVector(X,Y,H));N.Add(Normal);UV.Add(FVector2D(X/1000,Y/1000));
+        float Sand=IslandTerrain::Smooth((IslandTerrain::Radius(X,Y)-.68f)/.19f);
+        float Cliff=IslandTerrain::Smooth((.92f-Normal.Z)/.3f);
+        Colors.Add(FLinearColor(Sand,Cliff,0,1));
     }
-    Route(TEXT("OutlookSupport"),FVector(2720,0,560),FVector(2420,1900,120));
-    Route(TEXT("CourtyardSupport"),FVector(6310,0,560),FVector(2450,2450,120));
-    Route(TEXT("SanctuarySupport"),FVector(8900,0,770),FVector(1900,2100,120));
-    Ground(FVector(-1550,0,-8),FVector(1895,1895,15));
-    Ground(FVector(2720,0,610),FVector(2410,1890,18));
-    Ground(FVector(6310,0,610),FVector(2440,2440,18));
-    Block(TEXT("SanctuaryPaving"),FVector(8900,0,821),FVector(1895,2095,16));
-    for(int I=0;I<5;I++)Block(TEXT("SanctuaryPavingStairs"),FVector(7550+I*95,0,620+(I+1)*42-21),FVector(110,700,42));
-    // A path of uneven surviving flags, with earth and vegetation showing between stones.
-    for(int Zone=0;Zone<2;Zone++)for(int X=0;X<14;X++)for(int Y=-2;Y<=2;Y++) {
-        if(R.FRand()<.13f && Y!=0)continue;
-        float PX=(Zone?5150:1600)+X*170, PY=Y*170+((X%2)?32:0);
-        Block(TEXT("BrokenPaving"),FVector(PX,PY,615+R.FRandRange(0,3)),FVector(R.FRandRange(147,163),R.FRandRange(148,164),12),FRotator(0,R.FRandRange(-2,2),0));
-    }
-    Scan(TEXT("OutlookCore"),TEXT("/Game/Coastal/Meshes/SM_CliffCore.SM_CliffCore"),FVector(2700,0,-940),FVector(2800,2550,3100),FRotator::ZeroRotator);
-    Scan(TEXT("FortCore"),TEXT("/Game/Coastal/Meshes/SM_CliffCore.SM_CliffCore"),FVector(6310,0,-940),FVector(2750,3100,3100),FRotator::ZeroRotator);
-    Scan(TEXT("SanctuaryCore"),TEXT("/Game/Coastal/Meshes/SM_CliffCore.SM_CliffCore"),FVector(8880,0,-830),FVector(1900,2750,3300),FRotator::ZeroRotator);
-    // Scanned geology: broad, overlapping cliff sheets instead of isolated egg-shaped rocks.
-    Scan(TEXT("WestCliff"),CliffMesh,FVector(-1300,100,-1460),FVector(3100,2900,2800),FRotator(0,180,0));
-    Scan(TEXT("ClimbingCliff"),CliffMesh,FVector(450,200,-1400),FVector(2300,3000,2900),FRotator(0,180,0));
-    Scan(TEXT("OutlookCliff"),CliffMesh,FVector(2550,250,-1570),FVector(3900,3400,4200),FRotator(0,186,0));
-    Scan(TEXT("FortCliff"),CliffMesh,FVector(6980,480,-1570),FVector(5100,3800,4220),FRotator(0,172,0));
-    Scan(TEXT("ChapelCliff"),CliffMesh,FVector(9270,450,-1410),FVector(3300,3600,4390),FRotator(0,192,0));
-    // Secondary rocks disguise seams, anchor the buildings and vary the shoreline.
-    for(int I=0;I<28;I++) {
-        float X=R.FRandRange(-2400,10100);if(X>3850&&X<5150)continue;
-        float Y=(I%2?1:-1)*R.FRandRange(1450,1900);float H=R.FRandRange(450,1100);
-        if(X>6200&&X<6860&&Y<0)continue; // Keep the watchtower causeway clear.
-        float Top=X<0?0:X<1500?350:X<7800?650:850;
-        Scan(TEXT("ScannedButtressRock"),RockMesh,FVector(X,Y,Top-H*.6),FVector(H*1.1,H*.9,H),FRotator(0,R.FRandRange(0,360),0));
-    }
-    // The upper, inland slope is deliberately taller; the ocean side stays open.
-    for(int I=0;I<10;I++) {
-        float X=-1500+I*1380;
-        Scan(TEXT("InlandRockRidge"),RockMesh,FVector(X,3700+R.FRandRange(0,650),300),FVector(2400,2200,R.FRandRange(1800,2700)),FRotator(0,R.FRandRange(-20,20),0));
-    }
-    // A narrow, sagging timber crossing through an actual break in the cliff.
-    for(int I=0;I<23;I++) {
-        float X=3940+I*52, Dip=FMath::Sin(I*PI/22)*50;
-        Shape(TEXT("BridgePlank"),TEXT("Cube"),FVector(X,R.FRandRange(-6,6),610-Dip),FVector(48,R.FRandRange(478,505),28),Wood,FRotator(0,R.FRandRange(-1.5,1.5),0));
-        if(I%5==0||I==22)for(int S:{-1,1})Beam(TEXT("BridgePost"),FVector(X,S*260,590-Dip),FVector(X,S*260,790-Dip),18);
-        if(I<22)for(int S:{-1,1}) {
-            float NextDip=FMath::Sin((I+1)*PI/22)*50;
-            Beam(TEXT("BridgeRope"),FVector(X,S*260,770-Dip),FVector(X+52,S*260,770-NextDip),5);
-            Beam(TEXT("BridgeLowRope"),FVector(X,S*260,650-Dip),FVector(X+52,S*260,650-NextDip),4);
+    for(int32 J=0;J<NY-1;J++)for(int32 I=0;I<NX-1;I++){int32 A=J*NX+I;Tri.Append({A,A+NX,A+1,A+1,A+NX,A+NX+1});}
+    Terrain->ClearAllMeshSections();Terrain->CreateMeshSection_LinearColor(0,V,Tri,N,UV,Colors,Tangents,true);
+    Terrain->SetMaterial(0,LoadObject<UMaterialInterface>(nullptr,TEXT("/Game/Materials/M_IslandTerrain")));
+    Terrain->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);Terrain->SetCollisionResponseToAllChannels(ECR_Block);Terrain->SetCollisionResponseToChannel(ECC_Camera,ECR_Ignore);
+    V.Empty();N.Empty();Tri.Empty();UV.Empty();Colors.Empty();
+    for(int32 I=0;I<=240;I++) {
+        float A=I*2*PI/240,Edge=IslandTerrain::Shore(A);
+        for(int32 Band=0;Band<2;Band++) {
+            float Q=Edge+.002f+Band*.012f;
+            V.Add(FVector(FMath::Cos(A)*10500*Q,FMath::Sin(A)*8500*Q,6));N.Add(FVector::UpVector);UV.Add(FVector2D(I*.7f,Band));Colors.Add(FLinearColor::White);
         }
+        if(I<240){int32 K=I*2;Tri.Append({K,K+2,K+1,K+1,K+2,K+3});}
     }
-    for(float X:{3860.f,5150.f})for(int S:{-1,1}) {
-        Block(TEXT("BridgeAnchor"),FVector(X,S*365,720),FVector(165,180,220));
-        Trim(TEXT("BridgeAnchorCap"),FVector(X,S*365,840),FVector(185,200,24));
+    Surf->ClearAllMeshSections();Surf->CreateMeshSection_LinearColor(0,V,Tri,N,UV,Colors,Tangents,false);Surf->SetMaterial(0,LoadObject<UMaterialInterface>(nullptr,TEXT("/Game/Materials/M_IslandFoam")));
+    auto* Sea=Shape(TEXT("OpenSea"),TEXT("Plane"),FVector(0,0,-6),FVector(4000000,4000000,100),FLinearColor(.03,.12,.55),FRotator::ZeroRotator,false);
+    Sea->SetMaterial(0,LoadObject<UMaterialInterface>(nullptr,TEXT("/Game/Materials/M_IslandWater")));
+    auto Block=[&](FString Name,FVector P,FVector S,bool Collision=true){return Shape(Name,TEXT("Cube"),P,S,Stone,FRotator::ZeroRotator,Collision);};
+    auto Trim=[&](FString Name,FVector P,FVector S,bool Collision=true){return Shape(Name,TEXT("Cube"),P,S,Chalk,FRotator::ZeroRotator,Collision);};
+    auto Beam=[&](FString Name,FVector A,FVector B,float Width){const FVector D=B-A;return Shape(Name,TEXT("Cylinder"),(A+B)*.5,FVector(Width,Width,D.Size()),Wood,FRotationMatrix::MakeFromZ(D).Rotator(),false);};
+    auto Scan=[&](FString Name,FVector P,FVector Size,FRotator Rot){auto* C=Asset(Name,RockMesh,FVector::ZeroVector,100,Rot);if(!C)return;auto B=C->GetStaticMesh()->GetBounds();FVector S=Size/(B.BoxExtent*2);C->SetRelativeScale3D(S);C->SetRelativeLocation(P-Rot.RotateVector(B.Origin*S));};
+    // Geological clusters follow the actual slope, with the beach and trail kept open.
+    for(int I=0;I<75;I++) {
+        float A=R.FRandRange(0,2*PI),Q=R.FRandRange(.81,1.09);float X=1400+FMath::Cos(A)*4300*Q,Y=700+FMath::Sin(A)*3400*Q;
+        if(X<1300&&FMath::Abs(Y-IslandTerrain::TrailY(X))<950)continue;
+        float H=R.FRandRange(450,1000);Scan(TEXT("HighlandRock"),FVector(X,Y,GroundHeight(X,Y)-H*.18f),FVector(H*1.5,H,H),FRotator(0,R.FRandRange(0,360),0));
     }
-    // Surviving sea wall and broken battlements. Deliberately unequal heights and gaps.
-    for(int Side:{-1,1})for(int I=0;I<12;I++) {
-        if((I==2||I==7)&&Side==-1)continue;
-        float X=5200+I*190, H=R.FRandRange(95,230);
-        Block(TEXT("FortParapet"),FVector(X,Side*1190,620+H*.5),FVector(187,110,H));
-        if(I%3==0)Trim(TEXT("ParapetCoping"),FVector(X,Side*1190,620+H+12),FVector(199,135,24));
+    for(int I=0;I<45;I++) {
+        float A=R.FRandRange(0,2*PI),Q=IslandTerrain::Shore(A)*R.FRandRange(.92,1.06);
+        float X=FMath::Cos(A)*10500*Q,Y=FMath::Sin(A)*8500*Q;if(X<-3800&&Y<-3000)continue;
+        float H=R.FRandRange(100,360);Scan(TEXT("TidalRock"),FVector(X,Y,GroundHeight(X,Y)+H*.2),FVector(H*1.7,H*1.3,H),FRotator(0,R.FRandRange(0,360),0));
     }
-    for(int I=0;I<6;I++) {
-        float X=5470+(I%3)*670,Y=(I/3==0?-1:1)*520;
-        Shape(TEXT("CourtyardCover"),TEXT("Cube"),FVector(X,Y,685),FVector(350,150,130),Stone,FRotator(0,R.FRandRange(-4,4),0),true,true);
-        Trim(TEXT("CoverCoping"),FVector(X,Y,752),FVector(360,161,12));
-    }
-    // Hero chapel facade: open arch, side windows, broken pediment and asymmetric tower.
-    Arch(FVector(8110,0,830),0);
-    for(int S:{-1,1}) {
-        Block(TEXT("FacadeWall"),FVector(8165,S*690,1370),FVector(170,550,1080));
-        Block(TEXT("FacadePlaster"),FVector(8068,S*730,1360),FVector(16,360,785));
-        Trim(TEXT("FacadeFooting"),FVector(8080,S*730,890),FVector(230,650,120));
-        Trim(TEXT("FacadeCornice"),FVector(8080,S*650,1905),FVector(225,705,65));
-        Block(TEXT("FacadeShoulder"),FVector(8170,S*620,2150),FVector(190,560,460));
-        for(int J=0;J<3;J++)Trim(TEXT("FacadeButtress"),FVector(8010-J*35,S*1000,1070+J*265),FVector(260-J*40,165,480-J*95));
-    }
-    Block(TEXT("ArchSpandrel"),FVector(8165,0,2020),FVector(170,820,230));
-    for(int I=-6;I<=6;I++) {
-        float Y=I*62.f, Bottom=1470+FMath::Sqrt(FMath::Max(0.f,400.f*400.f-Y*Y));
-        Block(TEXT("ArchSpandrelInfill"),FVector(8165,Y,(Bottom+1940)*.5),FVector(170,65,1940-Bottom));
-    }
-    // Jagged upper edge suggests the missing nave roof.
-    for(int I=-5;I<=5;I++) {
-        float H=280-FMath::Abs(I)*37+R.FRandRange(-60,65);
-        Block(TEXT("BrokenPediment"),FVector(8165,I*170,2115+H*.5),FVector(180,168,H));
-    }
-    // Long side walls with rhythm from open archways, not a row of detached columns.
-    for(int S:{-1,1}) {
-        for(int I=0;I<6;I++) {
-            float X=8250+I*300, H=(S==1?1050:520)+R.FRandRange(-180,180);
-            Block(TEXT("NaveWall"),FVector(X,S*1000,830+H*.5),FVector(297,150,H));
-            if(I%2==0)Trim(TEXT("NaveButtress"),FVector(X,S*1110,1150),FVector(165,220,640));
+    // The climbable ruin is the high point. It has real openings, a missing roof and a broken crown.
+    const FVector T=ExpeditionTower::Base;const float Top=ExpeditionTower::SummitZ();
+    Block(TEXT("TowerFoundation"),T-FVector(0,0,45),FVector(1180,1130,90));
+    Block(TEXT("TowerWestWall"),T+FVector(-440,0,1400),FVector(120,1000,2800));
+    for(int L=0;L<3;L++) {
+        const float B=T.Z+L*900;
+        for(int SX:{-1,1})for(int SY:{-1,1}) {
+            Block(TEXT("TowerCorner"),FVector(T.X+SX*415,T.Y+SY*420,B+440),FVector(170,160,880));
+            for(int K=0;K<6;K++)Trim(TEXT("TowerQuoin"),FVector(T.X+SX*420,T.Y+SY*425,B+65+K*148),FVector(180,172,120),false);
         }
-        for(int I=0;I<4;I++) {
-            float X=8320+I*470;
-            Shape(TEXT("BrokenRoofBeam"),TEXT("Cube"),FVector(X,S*610,1920),FVector(30,790,34),Wood,FRotator(0,0,S*24),false);
+        for(int Side:{-1,1}) {
+            for(int J:{-1,1})Block(TEXT("TowerWindowPier"),FVector(T.X+J*300,T.Y+Side*440,B+450),FVector(220,120,900));
+            Block(TEXT("TowerWindowSill"),FVector(T.X,T.Y+Side*440,B+185),FVector(400,120,370));
+            Block(TEXT("TowerWindowLintel"),FVector(T.X,T.Y+Side*440,B+805),FVector(400,120,190));
+            for(int K=0;K<11;K++) {
+                float A=(K+.5f)*PI/11;
+                Shape(TEXT("TowerWindowArch"),TEXT("Cube"),FVector(T.X+200*FMath::Cos(A),T.Y+Side*440,B+510+200*FMath::Sin(A)),FVector(62,145,92),Chalk,FRotator(90-FMath::RadiansToDegrees(A),0,0),false);
+            }
         }
+        // Part of the inland wall has collapsed, revealing the dark interior.
+        Block(TEXT("TowerEastRemnant"),FVector(T.X+440,T.Y+280,B+440),FVector(120,410,880));
+        if(L==0)Block(TEXT("TowerEastRubbleWall"),FVector(T.X+440,T.Y-280,B+200),FVector(120,350,400));
+        Block(TEXT("TowerInteriorFloor"),FVector(T.X,T.Y,B-20),FVector(880,880,40));
+        // Courses stay flush on the climbing face so the capsule cannot snag.
+        for(int Side:{-1,1})Trim(TEXT("TowerCornice"),FVector(T.X,T.Y+Side*490,B+875),FVector(1040,55,50));
     }
-    Arch(FVector(9730,0,830),0);
-    Shape(TEXT("RelicAltar"),TEXT("Cylinder"),FVector(8750,-500,875),FVector(270,270,90),Stone);
-    // Bell tower stands inland of the gate. Two levels of real window openings.
-    const FVector Tower(8490,1490,830);
-    for(int L=0;L<2;L++) {
-        float B=Tower.Z+L*1050;
-        for(int S:{-1,1}) {
-            Block(TEXT("TowerCorner"),FVector(Tower.X-345,Tower.Y+S*295,B+505),FVector(220,210,1010));
-            Block(TEXT("TowerCorner"),FVector(Tower.X+345,Tower.Y+S*295,B+505),FVector(220,210,1010));
-            Block(TEXT("TowerSide"),FVector(Tower.X,Tower.Y+S*345,B+310),FVector(690,150,620));
-            Block(TEXT("TowerWindowLintel"),FVector(Tower.X,Tower.Y+S*345,B+980),FVector(720,150,130));
-            Block(TEXT("TowerFrontBase"),FVector(Tower.X+S*345,Tower.Y,B+310),FVector(150,610,620));
-            Block(TEXT("TowerFrontLintel"),FVector(Tower.X+S*345,Tower.Y,B+980),FVector(150,630,130));
-            Trim(TEXT("TowerStringCourse"),FVector(Tower.X,Tower.Y+S*350,B+1050),FVector(930,180,60));
-            Trim(TEXT("TowerStringCourse"),FVector(Tower.X+S*400,Tower.Y,B+1050),FVector(170,810,60));
-        }
-    }
+    Block(TEXT("TowerRoofDeck"),FVector(T.X,T.Y,Top-35),FVector(1000,1000,70));
     for(int I=0;I<9;I++) {
-        float H=R.FRandRange(110,320);
-        Block(TEXT("TowerBrokenCrown"),Tower+FVector(-350+I*88,350,2110+H*.5),FVector(85,160,H));
+        float H=R.FRandRange(90,390);
+        Block(TEXT("TowerBrokenCrown"),FVector(T.X-450+I*110,T.Y+460,Top+H*.5),FVector(108,100,H));
+        if(I>4)Block(TEXT("TowerBrokenCrown"),FVector(T.X+460,T.Y-450+I*110,Top+H*.3),FVector(100,108,H*.6));
     }
-    // Offshore watchtower: a complete collision route spirals around five masonry storeys.
-    const FVector Watch=ExpeditionTower::Base;
-    Scan(TEXT("WatchtowerCliffCore"),TEXT("/Game/Coastal/Meshes/SM_CliffCore.SM_CliffCore"),Watch-FVector(0,0,1620),FVector(2240,2240,3200),FRotator::ZeroRotator);
-    for(int I=0;I<6;I++) {
-        float Angle=I*PI/3;
-        Scan(TEXT("WatchtowerFoundationRock"),RockMesh,Watch+FVector(FMath::Cos(Angle)*940,FMath::Sin(Angle)*940,-1450),FVector(1120,1050,2700),FRotator(0,I*60,0));
+    for(int Side:{-1,1})Block(TEXT("TowerSummitParapet"),FVector(T.X+Side*460,T.Y-280,Top+65),FVector(80,400,130));
+    Beam(TEXT("BrokenTowerRoof"),FVector(T.X-420,T.Y+330,Top+190),FVector(T.X+220,T.Y+240,Top+280),35);
+    Beam(TEXT("BrokenTowerRoof"),FVector(T.X+390,T.Y+340,Top+230),FVector(T.X+320,T.Y-80,Top+310),27);
+    // Discrete protruding stone handles, not walkable exterior stairs.
+    for(int I=0;I<ExpeditionTower::Steps;I++) {
+        FVector P=ExpeditionTower::Grip(I);const float Width=I==7||I==8?105:78;
+        auto* Grip=Trim(FString::Printf(TEXT("WallGrip_%02d"),I),P+FVector(23,0,-10),FVector(48,Width,20),false);
+        Grip->ComponentTags.Add(TEXT("WallGrip"));
+        Shape(TEXT("GripMortarCrack"),TEXT("Cube"),P+FVector(39,0,-30),FVector(3,Width+24,8),Rock,FRotator::ZeroRotator,false);
+        if(I%3==0)Trim(TEXT("ClimbFootNub"),P+FVector(30,30,-90),FVector(27,38,15),false);
     }
-    Route(TEXT("WatchtowerBase"),Watch-FVector(0,0,40),FVector(2200,2200,80));
-    // Existing break in the south courtyard wall leads to this level timber causeway.
-    for(int I=0;I<12;I++) {
-        float Y=-1200-I*100;
-        Shape(TEXT("WatchCausewayPlank"),TEXT("Cube"),FVector(6530,Y,610),FVector(380,98,20),Wood);
-        if(I%3==0)for(int Side:{-1,1})Beam(TEXT("WatchCausewayPost"),FVector(6530+Side*190,Y,570),FVector(6530+Side*190,Y,710),12);
-        if(I<11)for(int Side:{-1,1})Beam(TEXT("WatchCausewayRope"),FVector(6530+Side*190,Y,710),FVector(6530+Side*190,Y-100,710),4);
+    for(int I=0;I<60;I++) {
+        float A=R.FRandRange(0,2*PI),Radius=R.FRandRange(670,1400),X=T.X+FMath::Cos(A)*Radius,Y=T.Y+FMath::Sin(A)*Radius;
+        if(X<T.X&&FMath::Abs(Y-(T.Y-260))<200)continue;
+        Shape(TEXT("FallenTowerMasonry"),TEXT("Cube"),FVector(X,Y,GroundHeight(X,Y)+R.FRandRange(15,40)),FVector(R.FRandRange(35,110),R.FRandRange(40,120),R.FRandRange(30,90)),Stone,FRotator(R.FRandRange(-20,20),R.FRandRange(0,360),R.FRandRange(-15,15)),false);
     }
-    for(int L=0;L<5;L++) {
-        float Z=Watch.Z+L*840;
-        // Pier and lintel construction leaves open windows instead of painted black rectangles.
-        for(int Side:{-1,1}) {
-            for(int Corner:{-1,1}) {
-                Block(TEXT("WatchtowerCorner"),Watch+FVector(Side*480,Corner*480,L*840+420),FVector(240,240,840));
-                for(int Q=0;Q<6;Q++)Trim(TEXT("WatchtowerQuoin"),Watch+FVector(Side*493,Corner*493,L*840+Q*140+68),FVector(222,222,130));
-            }
-            for(int Axis=0;Axis<2;Axis++) {
-                auto Face=[&](float Along,float Height){return FVector(Watch.X+(Axis?Along:Side*540),Watch.Y+(Axis?Side*540:Along),Z+Height);};
-                auto Size=[&](float Width,float Height){return Axis?FVector(Width,120,Height):FVector(120,Width,Height);};
-                for(int J:{-1,1})Block(TEXT("WatchtowerWindowPier"),Face(J*290,420),Size(220,840));
-                Block(TEXT("WatchtowerWindowSill"),Face(0,150),Size(360,300));
-                Block(TEXT("WatchtowerWindowLintel"),Face(0,745),Size(360,190));
-                for(int A=0;A<9;A++) {
-                    const float Angle=(A+.5f)*PI/9.f;
-                    const FRotator Rotation=Axis?FRotator(90-FMath::RadiansToDegrees(Angle),0,0):FRotator(0,0,FMath::RadiansToDegrees(Angle)-90);
-                    Shape(TEXT("WatchtowerWindowArch"),TEXT("Cube"),Face(180*FMath::Cos(Angle),490+180*FMath::Sin(Angle)),Axis?FVector(64,145,85):FVector(145,64,85),Chalk,Rotation,false);
-                }
-                Block(TEXT("WatchtowerPlaster"),Face(Side*285,435)+FVector(Axis?0:Side*64,Axis?Side*64:0,0),Axis?FVector(175,8,510):FVector(8,175,510),FRotator::ZeroRotator,false);
-            }
-        }
-        Block(TEXT("WatchtowerInteriorFloor"),Watch+FVector(0,0,L*840-25),FVector(1100,1100,50));
-        for(int Side:{-1,1}) {
-            Trim(TEXT("WatchtowerBelt"),Watch+FVector(Side*580,0,L*840+810),FVector(85,1190,50));
-            Trim(TEXT("WatchtowerBelt"),Watch+FVector(0,Side*580,L*840+810),FVector(1100,85,50));
-        }
+    // One instanced component per species keeps the tropical understory inexpensive to render.
+    auto Instances=[&](const FString& Name,const TCHAR* Path){
+        auto* Mesh=LoadObject<UStaticMesh>(nullptr,Path);if(!Mesh)return (UHierarchicalInstancedStaticMeshComponent*)nullptr;
+        auto* C=NewObject<UHierarchicalInstancedStaticMeshComponent>(this,*Name);C->CreationMethod=EComponentCreationMethod::UserConstructionScript;C->SetupAttachment(RootComponent);C->SetStaticMesh(Mesh);C->SetCollisionEnabled(ECollisionEnabled::NoCollision);C->SetCullDistances(22000,36000);C->RegisterComponent();Pieces.Add(C);return C;
+    };
+    auto* Palms=Instances(TEXT("IslandPalms"),TEXT("/Game/Island/SM_CoconutPalm"));
+    auto* Trees=Instances(TEXT("JungleCanopy"),TEXT("/Game/Nature/SM_TownTree"));
+    if(Trees){Trees->SetMaterial(0,LoadObject<UMaterialInterface>(nullptr,TEXT("/Game/Materials/M_IslandTrunk")));Trees->SetMaterial(1,LoadObject<UMaterialInterface>(nullptr,TEXT("/Game/Materials/M_IslandCanopy")));Trees->SetMaterial(2,LoadObject<UMaterialInterface>(nullptr,TEXT("/Game/Materials/M_IslandBranches")));}
+    auto* Ferns=Instances(TEXT("JungleFerns"),FernMesh);
+    auto* Grass=Instances(TEXT("JungleGrass"),TEXT("/Game/Nature/SM_TownGrass"));
+    auto Plant=[&](UHierarchicalInstancedStaticMeshComponent* C,FVector P,float Height,float Yaw){if(!C)return;auto B=C->GetStaticMesh()->GetBounds();float S=Height/FMath::Max(B.BoxExtent.Z*2,1.f);FRotator Rot(0,Yaw,0);P-=Rot.RotateVector((B.Origin-FVector(0,0,B.BoxExtent.Z))*S);C->AddInstance(FTransform(Rot,P,FVector(S)));};
+    for(int I=0;I<3000;I++) {
+        float X=R.FRandRange(-9300,9300),Y=R.FRandRange(-7800,7800),Q=IslandTerrain::Radius(X,Y),H=GroundHeight(X,Y);
+        if(Q>.91||H<170||IslandTerrain::Normal(X,Y).Z<.9)continue;
+        if(FVector2D(X-T.X,Y-T.Y).Size()<1200)continue;
+        if(X>-7000&&X<1550&&FMath::Abs(Y-IslandTerrain::TrailY(X))<500)continue;
+        if(X<-5300&&Y<-3300&&FMath::Abs(Y+.7f*X+9540)<500)continue;
+        FVector P(X,Y,H);float A=R.FRandRange(0,360);
+        if(I%15==0)Plant(Palms,P,R.FRandRange(1000,1700),A);
+        else if(I%12==0&&Q<.78)Plant(Trees,P,R.FRandRange(800,1550),A);
+        else if(I%3==0)Plant(Ferns,P,R.FRandRange(75,155),A);
+        else Plant(Grass,P,R.FRandRange(45,105),A);
     }
-    for(int I=1;I<=ExpeditionTower::Steps;I++) {
-        const FVector P=ExpeditionTower::Terrace(I),D=ExpeditionTower::Direction(I);
-        const bool Timber=I%4==2||I%4==3;
-        // A 200 cm riser gives the existing wall/top traces a reachable, unambiguous lip.
-        auto* Collision=Shape(FString::Printf(TEXT("WatchLedge%02d"),I),TEXT("Cube"),P-FVector(0,0,100),FVector(400,400,200),Timber?Wood:Stone,FRotator::ZeroRotator,true,true);
-        Collision->SetVisibility(false);
-        if(Timber) {
-            for(int Plank=0;Plank<8;Plank++)Shape(TEXT("WatchBalconyBoard"),TEXT("Cube"),P+FVector(-175+Plank*50,0,-14),FVector(48,400,28),Wood,FRotator::ZeroRotator,false);
-            Shape(TEXT("WatchGripFascia"),TEXT("Cube"),P-D*190-FVector(0,0,40),FVector(D.X!=0?20:400,D.Y!=0?20:400,80),Wood,FRotator::ZeroRotator,false);
-            for(int Side:{-1,1})Beam(TEXT("WatchBalconyJoist"),P+FVector(Side*150,-195,-45),P+FVector(Side*150,195,-45),28);
-        } else {
-            Shape(TEXT("WatchtowerClimbCornice"),TEXT("Cube"),P-FVector(0,0,40),FVector(400,400,80),Stone,FRotator::ZeroRotator,false);
-            Shape(TEXT("WatchtowerCorniceMoulding"),TEXT("Cube"),P-FVector(0,0,65),FVector(380,380,50),Chalk,FRotator::ZeroRotator,false);
-        }
-        Shape(TEXT("WatchLimestoneLip"),TEXT("Cube"),P-D*194-FVector(0,0,10),FVector(D.X!=0?14:390,D.Y!=0?14:390,20),Chalk,FRotator::ZeroRotator,false);
-        FVector Inner=P-Watch;Inner.Z=0;
-        Inner.X=FMath::Clamp(Inner.X,-580.f,580.f);Inner.Y=FMath::Clamp(Inner.Y,-580.f,580.f);
-        const FVector Tangent=FVector::CrossProduct(FVector::UpVector,D);
-        for(int Side:{-1,1})Beam(TEXT("WatchScaffoldBrace"),Watch+Inner+Tangent*Side*125+FVector(0,0,I*200-330),P+Tangent*Side*125-FVector(0,0,50),25);
+    // Beach palms frame the landing without filling the open sand with grass.
+    for(auto P:{FVector(-7350,-3650,0),FVector(-5500,-5300,0),FVector(-4300,-5800,0),FVector(-8000,-2600,0),FVector(4900,-5200,0),FVector(6100,-4300,0)}){P.Z=GroundHeight(P.X,P.Y);Plant(Palms,P,R.FRandRange(1350,1750),R.FRandRange(0,360));}
+    for(int I=0;I<38;I++) {
+        float Y=T.Y+R.FRandRange(-390,390),Z=T.Z+R.FRandRange(200,2700);
+        if(FMath::Abs(Y-ExpeditionTower::Grip(FMath::Clamp(int((Z-T.Z)/130),0,21)).Y)<80)continue;
+        Plant(Ferns,FVector(T.X-485,Y,Z),R.FRandRange(45,85),R.FRandRange(0,360));
     }
-    const float Summit=ExpeditionTower::SummitZ();
-    Block(TEXT("WatchtowerSummitPaving"),FVector(Watch.X,Watch.Y,Summit-40),FVector(1200,1200,80));
-    for(int Side:{-1,1}) {
-        Block(TEXT("WatchtowerSummitWall"),FVector(Watch.X+Side*575,Watch.Y,Summit+48),FVector(50,1200,96));
-        if(Side==1)Block(TEXT("WatchtowerSummitWall"),FVector(Watch.X,Watch.Y+575,Summit+48),FVector(1100,50,96));
-    }
-    // South-west entrance stays open to the last external terrace.
-    Block(TEXT("WatchtowerSummitWall"),FVector(Watch.X+200,Watch.Y-575,Summit+48),FVector(750,50,96));
-    for(int I=0;I<5;I++)for(int Side:{-1,1}) {
-        if(Side==-1&&I<2)continue;
-        Block(TEXT("WatchtowerMerlon"),FVector(Watch.X-470+I*235,Watch.Y+Side*570,Summit+135),FVector(95,100,80));
-    }
-    // A broken roof frame preserves the tower silhouette above the observation deck.
-    for(int Side:{-1,1}) {
-        Block(TEXT("WatchtowerCrownPier"),FVector(Watch.X+Side*470,Watch.Y+390,Summit+310),FVector(140,145,620));
-        Trim(TEXT("WatchtowerCrownCapital"),FVector(Watch.X+Side*470,Watch.Y+390,Summit+610),FVector(190,190,60));
-    }
-    Beam(TEXT("WatchtowerCrossbeam"),FVector(Watch.X-500,Watch.Y+390,Summit+625),FVector(Watch.X+500,Watch.Y+390,Summit+625),38);
-    for(int I=0;I<9;I++)Asset(TEXT("WatchtowerFern"),FernMesh,Watch+FVector(620,I%2?350:-350,90+I*410),R.FRandRange(40,60),FRotator(0,I*43,0));
-    // Abandoned storage bay on the approach, partly collapsed into the sea.
-    for(int I=0;I<6;I++) {
-        float H=I<3?R.FRandRange(330,520):R.FRandRange(100,230);
-        Block(TEXT("OutlookRuinedWall"),FVector(1740+I*265,850,620+H*.5),FVector(261,145,H));
-    }
-    for(int I=0;I<4;I++)Block(TEXT("OutlookBrokenWall"),FVector(1870+I*230,-855,690+I%2*30),FVector(220,120,140+I%2*60));
-    // Physical detail: weathered supply crates and masonry fallen from the adjacent wall.
-    for(auto P:{FVector(2220,700,620),FVector(2380,730,620),FVector(5800,-1000,620),FVector(6150,-980,620),FVector(9160,730,830)})
-        Asset(TEXT("AbandonedCrate"),TEXT("/Game/Coastal/Meshes/SM_wooden_crate_02.SM_wooden_crate_02"),P,R.FRandRange(80,115),FRotator(0,R.FRandRange(-25,25),0));
-    for(int I=0;I<85;I++) {
-        float X=R.FRandRange(5400,9700),Y=(I%2?1:-1)*R.FRandRange(830,1100);if(X>7480&&X<7950)continue;
-        float Z=X>7950?830:620;
-        Trim(TEXT("FallenMasonry"),FVector(X,Y,Z+R.FRandRange(10,26)),FVector(R.FRandRange(35,100),R.FRandRange(30,75),R.FRandRange(25,55)),FRotator(R.FRandRange(-18,18),R.FRandRange(0,180),R.FRandRange(-20,20)));
-    }
-    // Clustered foliage sits on known ground elevations, clear of gameplay sight lines.
-    for(auto P:{FVector(-2090,640,0),FVector(1750,730,620),FVector(3220,-900,620),FVector(5430,1050,620),FVector(7010,1030,620),FVector(9650,900,830)})Palm(P,R.FRandRange(1,1.35),R);
-    Asset(TEXT("UE_ArchVisTree"),TEXT("/Game/ArchVis/SampleScene/Tree/HillTree_02.HillTree_02"),FVector(2680,1850,200),2000,FRotator(0,75,0));
-    for(int I=0;I<210;I++) {
-        float X=R.FRandRange(1600,9760);if(X>3810&&X<5220||X>7470&&X<8000)continue;
-        float Y=(I%2?1:-1)*R.FRandRange(570,X<3900?910:1010),Z=X>7950?832:622;
-        Asset(TEXT("CC0_PathGrass"),TEXT("/Game/Nature/SM_TownGrass.SM_TownGrass"),FVector(X,Y,Z),R.FRandRange(35,76),FRotator(0,R.FRandRange(0,360),0));
-        if(I%3==0)Asset(TEXT("CoastalFern"),FernMesh,FVector(X+30,Y-20,Z),R.FRandRange(45,75),FRotator(0,R.FRandRange(0,360),0));
-    }
-    // Ferns on the facade read as plants reclaiming mortar and broken ledges.
-    for(int I=0;I<36;I++) {
-        float Y=(I%2?1:-1)*R.FRandRange(500,990),Z=R.FRandRange(920,2250);
-        Asset(TEXT("WallVegetation"),FernMesh,FVector(8010,Y,Z),R.FRandRange(40,80),FRotator(0,R.FRandRange(0,360),R.FRandRange(-12,12)));
-    }
-    Scan(TEXT("OceanHeadland"),RockMesh,FVector(23500,-12000,-1700),FVector(15000,9500,7800),FRotator(0,35,0));
-    Scan(TEXT("OceanFarIsland"),RockMesh,FVector(39000,-24000,-2500),FVector(20000,13000,9500),FRotator(0,-35,0));
-    // Background islands are closed rock scans, with haze between them.
-    for(int I=0;I<7;I++) {
-        float X=19000+I*5500,Y=9000+I*4000;
-        Scan(TEXT("DistantHeadland"),RockMesh,FVector(X,Y,-1800),FVector(17000,12000,7200+I*850),FRotator(0,25+I*35,0));
-    }
+    // Weathered supplies on the beach and a few route stones at the trail entrance.
+    for(auto P:{FVector(-6910,-4380,0),FVector(-6800,-4300,0),FVector(2280,1650,0)}){P.Z=GroundHeight(P.X,P.Y);Asset(TEXT("IslandSupplyCrate"),TEXT("/Game/Coastal/Meshes/SM_wooden_crate_02"),P,85,FRotator(0,R.FRandRange(-20,20),0));}
+    for(int I=0;I<14;I++){float X=-6100+I*490,Y=IslandTerrain::TrailY(X);for(int Side:{-1,1})Scan(TEXT("TrailStone"),FVector(X,Y+Side*380,GroundHeight(X,Y+Side*380)+20),FVector(95,75,70),FRotator(0,R.FRandRange(0,360),0));}
 }

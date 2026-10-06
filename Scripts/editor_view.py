@@ -1,24 +1,21 @@
-"""Open at the approach to the fortress; optional repeatable visual review views."""
+"""Open the tropical island overview; optionally capture repeatable review views."""
 import unreal
 from pathlib import Path
 views=[
- ('tower-overview',(2300,-9500,4400),(7330,-3000,2540)),
- ('tower-route',(5900,-4800,2620),(7060,-3330,2740)),
- ('tower-summit',(6730,-4300,5460),(7380,-2760,4930)),
- ('scene-preview',(3400,40,915),(8400,200,1510)),
- ('courtyard-preview',(5690,-770,850),(8300,360,1640)),
- ('cliff-overview',(2600,-5500,2200),(6640,250,450)),
- ('landing-preview',(-2230,-450,210),(1300,0,520)),
+ ('island-overview',(-12500,-15500,12200),(0,0,1500)),
+ ('island-beach',(-8550,-6350,570),(1600,900,3450)),
+ ('island-tower',(-3300,-3550,4300),(1600,900,3430)),
+ ('island-grips',(630,680,4130),(1110,1000,4090)),
 ]
 
 def view(v):
     name,xyz,target=v
     p=unreal.Vector(*xyz);r=unreal.MathLibrary.find_look_at_rotation(p,unreal.Vector(*target))
     unreal.EditorLevelLibrary.set_level_viewport_camera_info(p,r)
+if 'TowerCaptureOnly' in unreal.SystemLibrary.get_command_line(): views=views[2:]
 unreal.get_editor_subsystem(unreal.LevelEditorSubsystem).editor_set_game_view(True)
 view(views[0])
-unreal.log('COASTAL_REMAKE_EDITOR_READY')
-if 'TowerCaptureOnly' in unreal.SystemLibrary.get_command_line(): views=views[:3]
+unreal.log('TROPICAL_ISLAND_EDITOR_READY')
 if 'AdventureCapture' in unreal.SystemLibrary.get_command_line():
     state={'elapsed':0.,'index':0,'captured':False}
     def tick(delta):

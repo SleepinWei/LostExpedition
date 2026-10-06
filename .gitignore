@@ -41,3 +41,5 @@ __pycache__/
 *.pem
 *.key
 /Docs/*-inspect.*
+
+/ArtSource/Island/

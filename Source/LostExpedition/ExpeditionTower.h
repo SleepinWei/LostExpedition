@@ -1,19 +1,18 @@
 #pragma once
 #include "CoreMinimal.h"
 
-// Centimetres. Each terrace is wide enough to turn before the next grab.
 namespace ExpeditionTower {
-inline const FVector Base(7330,-3000,620);
-constexpr int32 Steps=21;
-constexpr float Rise=200.f;
-inline FVector Direction(int32 Step) {
-    const FVector Directions[]={FVector(0,-1,0),FVector(1,0,0),FVector(0,1,0),FVector(-1,0,0)};
-    return Directions[((Step-1)/4)%4];
+inline const FVector Base(1600,900,2200);
+inline const FVector WallNormal(-1,0,0);
+constexpr int32 Steps=23;
+constexpr float Height=2800.f;
+inline FVector Grip(int32 Index){
+    const float Side[Steps]={-260,-200,-280,-180,-80,-170,-90,20,130,230,260,140,40,-60,-150,-250,-200,-80,30,120,140,140,140};
+    const float Up[Steps]={220,350,480,610,740,870,1000,1130,1130,1130,1260,1390,1520,1650,1780,1910,2040,2170,2300,2430,2560,2690,2800};
+    Index=FMath::Clamp(Index,0,Steps-1);
+    return Base+FVector(-545,Side[Index],Up[Index]);
 }
-inline FVector Terrace(int32 Step) {
-    FVector P=Base+FVector(-800,800,0);
-    for(int32 I=1;I<=Step;I++)P+=Direction(I)*400+FVector(0,0,Rise);
-    return P;
-}
-inline float SummitZ(){return Base.Z+Steps*Rise;}
+inline FVector HangPosition(int32 Index){return Grip(Index)+WallNormal*48-FVector(0,0,105);}
+inline float SummitZ(){return Base.Z+Height;}
+inline FVector Start(){return Base+FVector(-780,-260,99);}
 }

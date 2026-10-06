@@ -9,7 +9,7 @@ UCLASS()
 class LOSTEXPEDITION_API UExpeditionSave : public USaveGame {
     GENERATED_BODY()
 public:
-    UPROPERTY() FVector Checkpoint=FVector(-1950,0,110);
+    UPROPERTY() FVector Checkpoint=FVector(-7200,-4500,300);
     UPROPERTY() TArray<FName> Collected;
     UPROPERTY() bool bHasKey=false;
     UPROPERTY() bool bGateOpen=false;
@@ -23,7 +23,7 @@ public:
 };
 
 UENUM(BlueprintType)
-enum class ETraversalState : uint8 { Walking, Hanging, Mantling };
+enum class ETraversalState : uint8 { Walking, Hanging, Mantling, Clinging, Reaching };
 
 UCLASS()
 class LOSTEXPEDITION_API AExplorerCharacter : public ACharacter {
@@ -40,6 +40,12 @@ public:
     void StartFire(); void StopFire(); void FireShot(); void AimStart(); void AimStop();
     void SprintStart(); void SprintStop(); void Pistol(); void Rifle(); void Journal(); void FreshStart();
     bool TryLedge(const FVector& At, const FVector& Direction, FVector& Edge, FVector& Normal) const;
+    bool BeginWallGrip(); bool MoveWallGrip(float Horizontal,float Vertical); void UpdateClimbPose();
+    int32 CurrentGrip=-1, TargetGrip=-1;
+    float ReachTime=0, GripCooldown=0;
+    bool bEnteringFromRoof=false;
+    FVector ReachStart;
+    UPROPERTY(VisibleAnywhere) TObjectPtr<class UPoseableMeshComponent> ClimbPose;
     bool BeginHang(); bool BeginMantle(); void Respawn(); void SaveCheckpoint();
     bool ReceiveLoot(AExpeditionLoot* Loot);
     void Notify(const FString& Text);
@@ -62,7 +68,7 @@ public:
     float ShotCooldown=0, ReloadRemaining=0, DamageFlash=0, NoticeRemaining=0;
     float Invulnerability=0, LedgeCooldown=0;
     FString Notice;
-    FVector Checkpoint=FVector(-1950,0,110);
+    FVector Checkpoint=FVector(-7200,-4500,300);
     TArray<FName> Collected;
     TWeakObjectPtr<AExpeditionLoot> Nearby;
     FVector Ledge, WallNormal, MantleStart, MantleEnd;
