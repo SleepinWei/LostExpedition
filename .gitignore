@@ -8,7 +8,7 @@ DerivedDataCache/
 .DS_Store
 __pycache__/
 
-# Public repository contains source, configuration and asset links only.
+# Public repository contains source, configuration, asset links and README previews.
 /Content/
 /Docs/*.png
 *.uasset
@@ -43,3 +43,9 @@ __pycache__/
 /Docs/*-inspect.*
 
 /ArtSource/Island/
+
+# Small documentation previews; original captures and game assets remain local.
+!/Docs/Images/island-overview.jpg
+!/Docs/Images/island-beach.jpg
+!/Docs/Images/island-tower.jpg
+!/Docs/Images/tower-gameplay.jpg

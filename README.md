@@ -1,62 +1,98 @@
-# Lost Expedition / 失落远征
+# Lost Expedition
 
-UE 5.8.3 原生 C++ 第三人称冒险原型。当前关卡为热带海岛：低处是滨海沙滩与浅水，中部是岩石高地，残破塔楼建在高地上；椰子树、乔木、蕨类和草丛形成丛林。塔楼西侧设有可实际攀爬的石把手。
+[English](README.md) | [简体中文](README.zh-CN.md)
 
-## 启动与素材
+A third-person adventure prototype built with native C++ in **Unreal Engine 5.8.3**. Explore a tropical island from its sandy shoreline, through the jungle, to a ruined tower on a central highland. Climb the tower using stone handholds, collect relics, and return to the beach.
 
-这是源码仓库，包含代码、配置、生成脚本和测试报告。模型、贴图、地图、截图及存档只保留在本机，不上传 Git。新克隆需按 [素材与恢复说明](Docs/ASSETS.md) 补齐资源并生成地图后再 Play。
+![Island overview: sandy shoreline, tropical forest, central highland, and ruined tower](Docs/Images/island-overview.jpg)
 
-- `Scripts/OpenEditor.command`：打开编辑器，默认查看整个海岛。
-- `Scripts/Play.command`：从沙滩进入游戏。
-- `Scripts/PlayTower.command`：直接到残塔下体验石把手攀爬，不清除存档。
-- `Scripts/Build.command`：编译编辑器模块。
-- `Scripts/SmokeTest.command`：运行真实游戏世界中的检查。
+## Screenshots
 
-Mac 脚本默认使用 `/Users/Shared/Epic Games/UE_5.8`。其他平台使用对应 C++ 工具链构建。内部地图资源名仍为 `/Game/Maps/CliffSanctuary`。
+Actual Unreal Engine captures from the current island level.
 
-## 场景与路线
+**Beach and jungle approach**
 
-1. 从西南侧沙滩出发，穿过椰林，沿连续的林间坡道走向中央高地。
-2. 高地约高出海面 22 米；塔顶平台比高地再高 28 米。残塔有窗洞、破损顶墙、断裂屋梁、落石和墙生植物。
-3. 塔楼西侧有 23 个凸出的石把手。纵向错位的路线中间需要两次横移，最上方把手可翻上塔顶。
-4. 沙滩、林间、塔下和塔顶设有检查点，靠近蓝色信标按 E 保存并恢复生命。
-5. 沙滩、树林和塔顶各有一件宝物。找到高地钥匙、打开塔楼东侧门，收齐宝物后返回沙滩出口。
+![Coconut palms and jungle vegetation framing the approach from the beach](Docs/Images/island-beach.jpg)
 
-## 操作
+**Ruined tower on the highland**
 
-| 操作 | 按键 |
+![Ruined stone tower with broken walls, window openings, and an exterior climbing route](Docs/Images/island-tower.jpg)
+
+**Playable wall climbing**
+
+![In-game character gripping a stone handhold on the tower wall](Docs/Images/tower-gameplay.jpg)
+
+## Getting started
+
+This repository contains source code, configuration, generation scripts, test reports, and compressed README screenshots. Game models, textures, maps, full-resolution captures, build output, and saves stay local. **A fresh clone requires asset restoration and map generation before it can be played.** Follow the [asset sources and restoration guide](Docs/ASSETS.md) for download links and exact import paths.
+
+The macOS scripts default to `/Users/Shared/Epic Games/UE_5.8`. Update that path for your installation. Other platforms require the corresponding Unreal C++ toolchain and build commands.
+
+| Script | Purpose |
 | --- | --- |
-| 移动 / 视角 | WASD / 鼠标 |
-| 奔跑 / 跳跃 | 左 Shift / Space |
-| 抓住石把手 / 交互 | E |
-| 贴墙向上、向下换手 | W / S |
-| 贴墙左右横移 | A / D |
-| 最上方把手翻上塔顶 | Space |
-| 从塔顶下攀 | 走到西侧缺口，面朝外侧，按 E |
-| 松手 | 左 Ctrl |
-| 瞄准 / 射击 | 鼠标右键 / 左键 |
-| 手枪 / 步枪 / 换弹 | 1 / 2 / R |
-| 医疗包 / 手雷 | Q / G |
-| 冒险日志 / 清除本海岛存档重开 | Tab / F5 |
+| [`Scripts/OpenEditor.command`](Scripts/OpenEditor.command) | Open the editor at the island overview |
+| [`Scripts/Play.command`](Scripts/Play.command) | Start the game from the beach, or resume a saved checkpoint |
+| [`Scripts/PlayTower.command`](Scripts/PlayTower.command) | Start beside the tower to try wall climbing; keeps existing saves |
+| [`Scripts/Build.command`](Scripts/Build.command) | Build the editor module |
+| [`Scripts/SmokeTest.command`](Scripts/SmokeTest.command) | Run checks in the actual game world |
 
-攀爬包含朝向检测、相邻把手选择、碰撞扫描、横移、下攀、登顶和反向抓边。程序化手脚姿态让手臂抬向把手、腿部弯曲贴墙。中间把手不能直接翻成站立状态；横向缺口需要使用 A/D。
+The map's internal asset path remains `/Game/Maps/CliffSanctuary`.
 
-## 其他玩法
+## Island and route
 
-保留手枪、步枪、换弹、肩后瞄准、命中伤害、手雷及爆炸遮挡、医疗包、钥匙、宝物和检查点存档。新海岛使用独立的 `LostExpedition_Island_Checkpoint` 存档槽，避免读取旧地图位置；旧存档未删除。
+1. Start on the southwest beach, pass through coconut palms, and follow a continuous forest trail onto the central highland.
+2. The highland rises approximately **22 m above sea level**. The tower's rooftop is another **28 m above the highland**, with window openings, broken upper walls, fallen masonry, roof beams, and wall plants.
+3. Follow **23 stone handholds** on the west wall. The route includes two horizontal transfers and a final mantle onto the rooftop.
+4. Checkpoints are located on the beach, in the forest, at the tower base, and on the rooftop. Approach a blue beacon and press **E** to save and restore health.
+5. Collect one relic each from the beach, forest, and rooftop. Find the highland key, unlock the tower's east doorway, and return to the beach exit with all three relics.
 
-## 生成与验证
+## Controls
 
-素材恢复后，在系统终端运行 `python3 Scripts/prepare_island_assets.py`，生成原创椰子树并下载沙滩贴图。随后在 Unreal 的 **Tools → Execute Python Script** 中执行 `Scripts/setup_scene.py`。该脚本会覆盖生成地图上的手动修改，请先保存自己的调整。
+| Action | Input |
+| --- | --- |
+| Move / look | WASD / mouse |
+| Sprint / jump | Left Shift / Space |
+| Grab a handhold / interact | E |
+| Climb up / down | W / S |
+| Traverse left / right | A / D |
+| Mantle from the final handhold | Space |
+| Descend from the rooftop | Approach the west opening, face outward, and press E |
+| Let go | Left Ctrl |
+| Aim / fire | Right / left mouse button |
+| Pistol / rifle / reload | 1 / 2 / R |
+| Medkit / grenade | Q / G |
+| Adventure journal / reset this island's save | Tab / F5 |
 
-- `IslandTerrain.h`：岛形、高地与坡道高度函数。
-- `ExpeditionWorld.cpp`：连续地形、海水、植被实例与残塔。
-- `ExpeditionTower.h`：石把手坐标与塔楼尺寸。
-- `ExplorerCharacter.cpp`：攀爬、手脚姿态、战斗与存档。
-- `Scripts/create_island_materials.py`：沙滩/岩壁混合、浅海、浪花与丛林材质。
+Climbing includes facing checks, adjacent handhold selection, collision sweeps, horizontal transfers, descent, rooftop mantling, and grabbing the edge from above. Procedural arm and leg poses place the hands at the grip and bend the legs toward the wall. Intermediate holds cannot be mantled; horizontal gaps require **A/D**.
 
-最新检查结果见 `Docs/runtime-test.txt`，覆盖沙滩至塔下的连续通行、全部把手换手、横向缺口、阻挡、贴墙姿态、登顶、下攀及武器道具存档回归。
+## Combat, items, and saves
 
-本机预览为 `Docs/island-overview.png`、`island-beach.png`、`island-tower.png` 和 `island-grips.png`。编辑器启动时执行 `Scripts/editor_view.py` 并增加 `-AdventureCapture -AdventureCaptureExit` 可重新生成。`-WatchtowerVisualReview` 会进入真实抓边状态，生成 `Docs/tower-gameplay.png` 后退出。
+The prototype includes a pistol, rifle, reloading, over-the-shoulder aiming, hit damage, grenades with blast occlusion, medkits, keys, relics, and checkpoint saves.
 
-当前仍是单人冒险原型：使用 UE mannequin 和程序化贴墙姿态，尚无完整动捕攀爬动画、绳索摆荡、声音和电影演出。资源来源见 [素材说明](Docs/ASSETS.md)。
+The island uses the separate `LostExpedition_Island_Checkpoint` save slot to avoid restoring positions from the previous map. Older saves are preserved.
+
+## Generation and validation
+
+After restoring the required assets, run this in your system terminal to generate the original coconut palm mesh and download the sand textures:
+
+```sh
+python3 Scripts/prepare_island_assets.py
+```
+
+Then execute `Scripts/setup_scene.py` through Unreal's **Tools → Execute Python Script** menu. This regenerates the map and overwrites manual changes to that generated level; save your own edits elsewhere first.
+
+| Source | Responsibility |
+| --- | --- |
+| [`IslandTerrain.h`](Source/LostExpedition/IslandTerrain.h) | Island outline, highland, and trail height functions |
+| [`ExpeditionWorld.cpp`](Source/LostExpedition/ExpeditionWorld.cpp) | Continuous terrain, ocean, vegetation instances, and ruined tower |
+| [`ExpeditionTower.h`](Source/LostExpedition/ExpeditionTower.h) | Handhold coordinates and tower dimensions |
+| [`ExplorerCharacter.cpp`](Source/LostExpedition/ExplorerCharacter.cpp) | Traversal, procedural poses, combat, and saves |
+| [`create_island_materials.py`](Scripts/create_island_materials.py) | Blended sand and rock, shallow water, shoreline foam, and vegetation materials |
+
+The recorded runtime result is **63 checks passed, 0 failures**; see the [test report](Docs/runtime-test.txt). Checks cover the continuous beach-to-tower route, every handhold transfer, horizontal gaps, blocked reaches, climbing poses, rooftop ascent and descent, weapons, items, and saves. These results apply to the configured local project; run the checks again after restoring assets in a fresh clone.
+
+For repeatable screenshots, run `Scripts/editor_view.py` at editor startup with `-AdventureCapture -AdventureCaptureExit`. It writes the full-resolution island views to `Docs/`. Launching the game with `-WatchtowerVisualReview` captures a real wall-gripping state to `Docs/tower-gameplay.png` and exits. Only the compressed copies in `Docs/Images/` are included in Git.
+
+## Current scope
+
+This is a single-player adventure prototype using the UE mannequin and procedural climbing poses. Full motion-captured climbing animation, rope swinging, audio, and cinematic sequences are not implemented. External asset sources and restoration instructions are listed in [Docs/ASSETS.md](Docs/ASSETS.md).
