@@ -11,6 +11,12 @@ public:
     virtual void BeginPlay() override;
     void RunTestWhenReady();
     FTimerHandle TestTimer;
+private:
+    void StartAnimationReview();
+    void CaptureAnimationFrame();
+    FTimerHandle AnimationReviewTimer;
+    int32 AnimationReviewFrame=0;
+    UPROPERTY() TObjectPtr<class ACameraActor> AnimationReviewCamera;
 };
 UCLASS()
 class LOSTEXPEDITION_API AExpeditionHUD : public AHUD {

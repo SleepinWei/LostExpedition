@@ -1,5 +1,5 @@
 Lost Expedition runtime smoke test
-63 checks; 0 failures
+73 checks; 0 failures
 
 PASS: Continuous island terrain generated with collision
 PASS: Tropical palms, canopy trees and dense grass are instanced
@@ -13,6 +13,8 @@ PASS: Grab the first stone handle from the ground
 PASS: Intermediate wall handles cannot be used as walkable platforms
 PASS: Procedural wall pose lifts the hands to the stone grip
 PASS: Obstructed wall reach is rejected
+PASS: Climb animation moves one hand ahead of the supporting hand
+PASS: Reaching shows the animated climbing mesh and stows the weapon
 PASS: Collision-safe handhold transfer 01 / 22
 PASS: Collision-safe handhold transfer 02 / 22
 PASS: Collision-safe handhold transfer 03 / 22
@@ -38,18 +40,26 @@ PASS: Collision-safe handhold transfer 20 / 22
 PASS: Collision-safe handhold transfer 21 / 22
 PASS: Collision-safe handhold transfer 22 / 22
 PASS: Start the final mantle from the top stone handle
+PASS: Mantle keeps the crouched climbing pose through the pull-up
 PASS: Stand on the ruined tower roof after climbing the entire wall
 PASS: Summit checkpoint can be reached and interacted with
 PASS: Enter the top handhold from the roof edge to climb back down
 PASS: Reverse mantle clears the roof collision before lowering the character
 PASS: Descend between wall grips with S
 PASS: Drop releases the wall and restores the normal character mesh
+PASS: Official pistol and rifle pose and firing sequences load
 PASS: Fire consumes one round
 PASS: Hitscan damages skeletal guard
-PASS: Fire rate enforced
+PASS: Successful pistol shot animates the upper body over the aiming pose
+PASS: Weapon follows the animated hand socket
+PASS: Fire rate blocks both extra rounds and animation retriggers
+PASS: Firing animation recovers and blends back into locomotion
 PASS: Reload clamps to available reserve
 PASS: Empty reserve rejects reload
 PASS: Weapon swap uses official rifle mesh
+PASS: Rifle aiming animation keeps the barrel aligned with the camera
+PASS: Upper-body firearm animation preserves the locomotion foot pose
+PASS: Automatic rifle fire repeatedly triggers the rifle recoil animation
 PASS: Pistol selection uses official pistol mesh
 PASS: Medkit heals and is consumed
 PASS: No free healing with empty inventory

@@ -22,6 +22,16 @@ UE 5.8.3 原生 C++ 第三人称冒险原型。当前关卡为热带海岛：低
 
 ![角色抓住塔墙石把手，进行贴墙攀爬](Docs/Images/tower-gameplay.jpg)
 
+## 角色动画
+
+攀爬包含抓握过渡、交替换手与抬脚、上攀和横移时的重心移动、屈身撑上塔顶，以及从塔顶反向下攀。手脚目标在运行时根据塔墙位置求解。
+
+![上攀、横移、登顶和下攀动画](Docs/Images/climbing-animation.gif)
+
+手枪和步枪分别使用 UE 官方 mannequin 开火动画，叠加到上半身并保留腿部行走。武器跟随动画后的手部，步枪连续开火会反复触发后坐力，动作结束后平滑回到移动姿态；瞄准高度随相机调整。
+
+![游戏中的手枪和步枪开火动画](Docs/Images/firing-animation.gif)
+
 ## 启动与素材
 
 这是源码仓库，包含代码、配置、生成脚本、测试报告和 README 压缩预览图。模型、贴图、地图、原始全分辨率截图、编译产物及存档只保留在本机，不上传 Git。**新克隆需按 [素材与恢复说明](Docs/ASSETS.md) 补齐资源并生成地图后再 Play。**
@@ -31,6 +41,7 @@ UE 5.8.3 原生 C++ 第三人称冒险原型。当前关卡为热带海岛：低
 - `Scripts/PlayTower.command`：直接到残塔下体验石把手攀爬，不清除存档。
 - `Scripts/Build.command`：编译编辑器模块。
 - `Scripts/SmokeTest.command`：运行真实游戏世界中的检查。
+- `Scripts/AnimationReview.command`：捕获可重复的攀爬与开火动画帧。
 
 Mac 脚本默认使用 `/Users/Shared/Epic Games/UE_5.8`。其他平台使用对应 C++ 工具链构建。内部地图资源名仍为 `/Game/Maps/CliffSanctuary`。
 
@@ -59,7 +70,7 @@ Mac 脚本默认使用 `/Users/Shared/Epic Games/UE_5.8`。其他平台使用对
 | 医疗包 / 手雷 | Q / G |
 | 冒险日志 / 清除本海岛存档重开 | Tab / F5 |
 
-攀爬包含朝向检测、相邻把手选择、碰撞扫描、横移、下攀、登顶和反向抓边。程序化手脚姿态让手臂抬向把手、腿部弯曲贴墙。中间把手不能直接翻成站立状态；横向缺口需要使用 A/D。
+攀爬包含朝向检测、相邻把手选择、碰撞扫描、横移、下攀、登顶和反向抓边。手脚分阶段运动，伸向下一个把手时保留另一只手支撑。中间把手不能直接翻成站立状态；横向缺口需要使用 A/D。
 
 ## 其他玩法
 
@@ -72,13 +83,17 @@ Mac 脚本默认使用 `/Users/Shared/Epic Games/UE_5.8`。其他平台使用对
 - `IslandTerrain.h`：岛形、高地与坡道高度函数。
 - `ExpeditionWorld.cpp`：连续地形、海水、植被实例与残塔。
 - `ExpeditionTower.h`：石把手坐标与塔楼尺寸。
-- `ExplorerCharacter.cpp`：攀爬、手脚姿态、战斗与存档。
+- `ExplorerCharacter.cpp`：攀爬状态、战斗与存档。
+- `ExplorerAnimation.cpp`：官方开火动画叠加、分阶段换手换脚与登顶姿态。
+- `ExplorerPoseComponent.cpp`：在行走骨骼更新后计算可见动作姿态。
 - `Scripts/create_island_materials.py`：沙滩/岩壁混合、浅海、浪花与丛林材质。
 
-当前记录为 **63 项检查通过、0 项失败**，详见 [测试报告](Docs/runtime-test.txt)，覆盖沙滩至塔下的连续通行、全部把手换手、横向缺口、阻挡、贴墙姿态、登顶、下攀及武器道具存档回归。该结果来自已配置素材的本机工程；新克隆恢复素材后应重新运行检查。
+运行结果见 [测试报告](Docs/runtime-test.txt)，覆盖沙滩至塔下的连续通行、全部把手换手、支撑手动作、阻挡、登顶下攀动画、开火动画触发与恢复、武器挂接、伤害、道具和存档。该结果来自已配置素材的本机工程；新克隆恢复素材后应重新运行检查。
 
 本机预览为 `Docs/island-overview.png`、`island-beach.png`、`island-tower.png` 和 `island-grips.png`。编辑器启动时执行 `Scripts/editor_view.py` 并增加 `-AdventureCapture -AdventureCaptureExit` 可重新生成。`-WatchtowerVisualReview` 会进入真实抓边状态，生成 `Docs/tower-gameplay.png` 后退出。
 
 Git 中仅包含 `Docs/Images/` 下的压缩预览副本。
 
-当前仍是单人冒险原型：使用 UE mannequin 和程序化贴墙姿态，尚无完整动捕攀爬动画、绳索摆荡、声音和电影演出。资源来源见 [素材说明](Docs/ASSETS.md)。
+`Scripts/AnimationReview.command` 会将固定时间步长的动画帧保存到 `Docs/AnimationFrames/`。使用安装了 Pillow 的 Python 运行 `Scripts/assemble_animation_previews.py` 可生成小体积 GIF；原始帧保留在本地。
+
+当前仍是单人冒险原型：使用 UE mannequin 和程序化攀爬动画，尚无完整动捕攀爬动画、绳索摆荡、声音和电影演出。资源来源见 [素材说明](Docs/ASSETS.md)。

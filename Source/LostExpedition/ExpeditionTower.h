@@ -12,7 +12,7 @@ inline FVector Grip(int32 Index){
     Index=FMath::Clamp(Index,0,Steps-1);
     return Base+FVector(-545,Side[Index],Up[Index]);
 }
-inline FVector HangPosition(int32 Index){return Grip(Index)+WallNormal*48-FVector(0,0,105);}
+inline FVector HangPosition(int32 Index){return Grip(Index)+WallNormal*48-FVector(0,0,95);}
 inline float SummitZ(){return Base.Z+Height;}
 inline FVector Start(){return Base+FVector(-780,-260,99);}
 }

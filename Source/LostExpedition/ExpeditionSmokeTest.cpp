@@ -7,6 +7,8 @@
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
 #include "Components/PoseableMeshComponent.h"
 #include "Camera/CameraComponent.h"
+#include "Animation/AnimSequence.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Engine/StaticMeshActor.h"
@@ -23,6 +25,7 @@ void AExplorerCharacter::RunSmokeTest() {
     TArray<FString> Results;int32 Failed=0;
     auto Check=[&](bool Pass,const FString& Name){Results.Add(FString::Printf(TEXT("%s: %s"),Pass?TEXT("PASS"):TEXT("FAIL"),*Name));if(!Pass)Failed++;UE_LOG(LogTemp,Display,TEXT("ADVENTURE_TEST %s %s"),Pass?TEXT("PASS"):TEXT("FAIL"),*Name);};
     Invulnerability=1000;
+    auto Advance=[&](float Duration){for(float Time=0;Time<Duration;Time+=.016f){Tick(.016f);UpdateClimbPose();}};
     int32 WorldCount=0;
     for(TActorIterator<AExpeditionWorld> It(GetWorld());It;++It){
         WorldCount++;Check(It->Terrain&&It->Terrain->GetNumSections()>0,TEXT("Continuous island terrain generated with collision"));
@@ -63,7 +66,7 @@ void AExplorerCharacter::RunSmokeTest() {
     SetActorRotation(FRotator(0,180,0));LedgeCooldown=0;Check(!BeginWallGrip(),TEXT("Cannot grab a handhold while facing away"));
     SetActorRotation(FRotator::ZeroRotator);Check(BeginHang()&&Traversal==ETraversalState::Clinging,TEXT("Grab the first stone handle from the ground"));
     Check(!BeginMantle(),TEXT("Intermediate wall handles cannot be used as walkable platforms"));
-    UpdateClimbPose();Check(ClimbPose->IsVisible()&&ClimbPose->GetBoneLocationByName(TEXT("hand_l"),EBoneSpaces::WorldSpace).Z>GetActorLocation().Z+65,TEXT("Procedural wall pose lifts the hands to the stone grip"));
+    Advance(.28f);Check(ClimbPose->IsVisible()&&ClimbPose->GetBoneLocationByName(TEXT("hand_l"),EBoneSpaces::WorldSpace).Z>GetActorLocation().Z+65,TEXT("Procedural wall pose lifts the hands to the stone grip"));
     GripCooldown=0;
     auto* Obstacle=GetWorld()->SpawnActor<AActor>();auto* Box=NewObject<UBoxComponent>(Obstacle);Obstacle->SetRootComponent(Box);Box->SetBoxExtent(FVector(45,55,45));Box->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);Box->SetCollisionResponseToAllChannels(ECR_Block);Box->RegisterComponent();Obstacle->SetActorLocation(ExpeditionTower::HangPosition(1));
     Check(!MoveWallGrip(0,1),TEXT("Obstructed wall reach is rejected"));Obstacle->Destroy();
@@ -72,20 +75,29 @@ void AExplorerCharacter::RunSmokeTest() {
         FVector Delta=ExpeditionTower::Grip(I)-ExpeditionTower::Grip(I-1);GripCooldown=0;
         if(FMath::Abs(Delta.Z)<1)Check(!MoveWallGrip(0,1),TEXT("Horizontal gap requires a deliberate sideways reach"));
         bool Reaching=MoveWallGrip(FMath::Abs(Delta.Z)<1?FMath::Sign(Delta.Y):0,Delta.Z>0?1:0);
-        if(Reaching)for(int K=0;K<34;K++)Tick(.016f);
+        if(Reaching&&I==1) {
+            Advance(.22f);
+            const int Lead=bLeadRight?1:0,Support=1-Lead;
+            const FVector Hand=ClimbPose->GetBoneLocationByName(Lead==0?TEXT("hand_l"):TEXT("hand_r"),EBoneSpaces::WorldSpace);
+            const FVector Other=ClimbPose->GetBoneLocationByName(Support==0?TEXT("hand_l"):TEXT("hand_r"),EBoneSpaces::WorldSpace);
+            UE_LOG(LogTemp,Display,TEXT("CLIMB_PHASE lead=%d time=%.3f body=%s hand=%s other=%s targets=%s/%s"),Lead,ReachTime,*GetActorLocation().ToString(),*Hand.ToString(),*Other.ToString(),*AnimatedHands[Lead].ToString(),*AnimatedHands[Support].ToString());
+            Check(Hand.Z>Other.Z+20,TEXT("Climb animation moves one hand ahead of the supporting hand"));
+            Check(ClimbPose->IsVisible()&&!GetMesh()->IsVisible()&&!WeaponMesh->IsVisible(),TEXT("Reaching shows the animated climbing mesh and stows the weapon"));
+            Advance(GripTransferDuration-.22f+.03f);
+        } else if(Reaching)Advance(GripTransferDuration+.03f);
         Climbed=Reaching&&CurrentGrip==I&&Traversal==ETraversalState::Clinging&&GetActorLocation().Equals(ExpeditionTower::HangPosition(I),2);
         Check(Climbed,FString::Printf(TEXT("Collision-safe handhold transfer %02d / %02d"),I,ExpeditionTower::Steps-1));
     }
     Check(Climbed&&BeginMantle(),TEXT("Start the final mantle from the top stone handle"));
-    if(Traversal==ETraversalState::Mantling)for(int I=0;I<45;I++)Tick(.016f);
+    if(Traversal==ETraversalState::Mantling){Advance(.38f);Check(ClimbPose->IsVisible()&&Traversal==ETraversalState::Mantling,TEXT("Mantle keeps the crouched climbing pose through the pull-up"));Advance(MantleDuration-.38f+.03f);}
     Check(Traversal==ETraversalState::Walking&&FMath::Abs(GetActorLocation().Z-(ExpeditionTower::SummitZ()+99))<3,TEXT("Stand on the ruined tower roof after climbing the entire wall"));
     FHitResult SummitHit;SetActorLocation(ExpeditionTower::Base+FVector(0,0,ExpeditionTower::Height+99),true,&SummitHit);RefreshLoot();
     Check(!SummitHit.bBlockingHit&&Nearby.IsValid()&&Nearby->ItemId==TEXT("TowerSummitCheckpoint"),TEXT("Summit checkpoint can be reached and interacted with"));
     SetActorLocation(ExpeditionTower::Grip(ExpeditionTower::Steps-1)+FVector(90,0,99));SetActorRotation(FRotator(0,180,0));LedgeCooldown=0;
     Check(BeginHang()&&Traversal==ETraversalState::Reaching,TEXT("Enter the top handhold from the roof edge to climb back down"));
-    if(Traversal==ETraversalState::Reaching)for(int K=0;K<34;K++)Tick(.016f);
+    if(Traversal==ETraversalState::Reaching)Advance(RoofEntryDuration+.03f);
     Check(Traversal==ETraversalState::Clinging&&CurrentGrip==ExpeditionTower::Steps-1,TEXT("Reverse mantle clears the roof collision before lowering the character"));
-    GripCooldown=0;bool Down=MoveWallGrip(0,-1);if(Down)for(int K=0;K<34;K++)Tick(.016f);
+    GripCooldown=0;bool Down=MoveWallGrip(0,-1);if(Down)Advance(GripTransferDuration+.03f);
     Check(Down&&CurrentGrip==ExpeditionTower::Steps-2,TEXT("Descend between wall grips with S"));
     // Releasing a handle must restore gravity and the walking mesh.
     SetActorLocation(ExpeditionTower::HangPosition(0)+FVector(-40,0,0));SetActorRotation(FRotator::ZeroRotator);Traversal=ETraversalState::Walking;LedgeCooldown=0;BeginWallGrip();Drop();
@@ -93,12 +105,24 @@ void AExplorerCharacter::RunSmokeTest() {
     SetActorLocation(FVector(3000,0,2299));GetCharacterMovement()->SetMovementMode(MOVE_Walking);LedgeCooldown=1;
     auto* Guard=GetWorld()->SpawnActor<AExpeditionGuard>(FVector(3400,0,2200),FRotator(0,-90,0));Guard->bTrainingTarget=true;
     Camera->SetWorldLocation(FVector(3100,0,2340));Camera->SetWorldRotation((FVector(3400,0,2295)-Camera->GetComponentLocation()).Rotation());
+    Check(WeaponIdleAnimations.Num()==2&&WeaponFireAnimations.Num()==2&&WeaponIdleAnimations[0]&&WeaponIdleAnimations[1]&&WeaponFireAnimations[0]&&WeaponFireAnimations[1],TEXT("Official pistol and rifle pose and firing sequences load"));
     AimStart();Weapon=0;Magazine[0]=12;ShotCooldown=0;float OldHealth=Guard->Health;FireShot();
     Check(Magazine[0]==11,TEXT("Fire consumes one round"));Check(Guard->Health<OldHealth,TEXT("Hitscan damages skeletal guard"));
-    int32 Before=Magazine[0];FireShot();Check(Magazine[0]==Before,TEXT("Fire rate enforced"));
-    Magazine[0]=0;Reserve[0]=5;Reload();Tick(1.3);Check(Magazine[0]==5&&Reserve[0]==0&&!bReloading,TEXT("Reload clamps to available reserve"));
+    const FQuat IdleArm=ClimbPose->GetBoneTransformByName(TEXT("upperarm_r"),EBoneSpaces::ComponentSpace).GetRotation();
+    Advance(.075f);
+    const FQuat RecoilArm=ClimbPose->GetBoneTransformByName(TEXT("upperarm_r"),EBoneSpaces::ComponentSpace).GetRotation();
+    Check(FireAnimationTime>0&&ClimbPose->IsVisible()&&IdleArm.AngularDistance(RecoilArm)>.01f,TEXT("Successful pistol shot animates the upper body over the aiming pose"));
+    Check(WeaponMesh->GetAttachParent()==ClimbPose,TEXT("Weapon follows the animated hand socket"));
+    const float ShotPhase=FireAnimationTime;int32 Before=Magazine[0];FireShot();Check(Magazine[0]==Before&&FireAnimationTime==ShotPhase,TEXT("Fire rate blocks both extra rounds and animation retriggers"));
+    AimStop();Advance(.9f);Check(FireAnimationTime<0&&ArmAnimationAlpha<.01f&&!ClimbPose->IsVisible(),TEXT("Firing animation recovers and blends back into locomotion"));
+    Magazine[0]=0;Reserve[0]=5;Reload();Advance(1.3);Check(Magazine[0]==5&&Reserve[0]==0&&!bReloading,TEXT("Reload clamps to available reserve"));
     Magazine[0]=0;Reserve[0]=0;Reload();Check(!bReloading,TEXT("Empty reserve rejects reload"));
-    Rifle();Check(Weapon==1&&WeaponMesh->GetStaticMesh()&&WeaponMesh->GetStaticMesh()->GetPathName().Contains(TEXT("SM_Rifle")),TEXT("Weapon swap uses official rifle mesh"));Pistol();Check(Weapon==0&&WeaponMesh->GetStaticMesh()&&WeaponMesh->GetStaticMesh()->GetPathName().Contains(TEXT("SM_Pistol")),TEXT("Pistol selection uses official pistol mesh"));
+    Rifle();Check(Weapon==1&&WeaponMesh->GetStaticMesh()&&WeaponMesh->GetStaticMesh()->GetPathName().Contains(TEXT("SM_Rifle")),TEXT("Weapon swap uses official rifle mesh"));AimStart();Advance(.3f);
+    UE_LOG(LogTemp,Display,TEXT("RIFLE_AIM barrel=%s camera=%s"),*WeaponMesh->GetRightVector().ToString(),*Camera->GetForwardVector().ToString());
+    // Both official weapon meshes have their barrel along local +Y.
+    Check(FVector::DotProduct(WeaponMesh->GetRightVector(),Camera->GetForwardVector())>.97f,TEXT("Rifle aiming animation keeps the barrel aligned with the camera"));
+    Check(FVector::Dist(ClimbPose->GetBoneLocationByName(TEXT("foot_r"),EBoneSpaces::WorldSpace),GetMesh()->GetSocketLocation(TEXT("foot_r")))<.5f,TEXT("Upper-body firearm animation preserves the locomotion foot pose"));
+    Magazine[1]=30;ShotCooldown=0;StartFire();Advance(.30f);StopFire();Check(Magazine[1]<=27&&FireAnimationTime>=0&&ClimbPose->IsVisible(),TEXT("Automatic rifle fire repeatedly triggers the rifle recoil animation"));Pistol();Check(Weapon==0&&WeaponMesh->GetStaticMesh()&&WeaponMesh->GetStaticMesh()->GetPathName().Contains(TEXT("SM_Pistol")),TEXT("Pistol selection uses official pistol mesh"));
     Health=25;Medkits=1;Heal();Check(Health==85&&Medkits==0,TEXT("Medkit heals and is consumed"));Heal();Check(Health==85,TEXT("No free healing with empty inventory"));
     auto SpawnLoot=[&](ELootKind Kind,FName Id){auto* L=GetWorld()->SpawnActor<AExpeditionLoot>(GetActorLocation()+FVector(100,0,0),FRotator::ZeroRotator);L->Kind=Kind;L->ItemId=Id;return L;};
     auto* Gate=SpawnLoot(ELootKind::Gate,TEXT("test_gate"));bHasKey=false;bGateOpen=false;Check(!ReceiveLoot(Gate)&&!bGateOpen,TEXT("Gate rejects missing key"));

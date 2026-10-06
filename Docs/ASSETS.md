@@ -1,6 +1,6 @@
 # 素材下载与本地恢复
 
-公开仓库发布源码、配置、说明、测试报告、少量自制 OBJ 几何源文件，以及 `Docs/Images/` 下的 README 压缩预览图。整个 `Content/`、下载的 FBX/贴图、原始全分辨率截图、编译缓存和存档均不上传，公开提交历史也不包含这些大文件。已有本机工程里的文件继续保留。
+公开仓库发布源码、配置、说明、测试报告、少量自制 OBJ 几何源文件，以及 `Docs/Images/` 下的 README 压缩预览图和动图。整个 `Content/`、下载的 FBX/贴图、原始全分辨率截图、编译缓存和存档均不上传，公开提交历史也不包含这些大文件。已有本机工程里的文件继续保留。
 
 ## 海岸扫描素材
 
@@ -54,6 +54,17 @@ python3 Scripts/restore_engine_assets.py --engine "/Users/Shared/Epic Games/UE_5
 | `Templates/TemplateResources/Standard/ArchVis/Content/SampleScene/Tree` | `Content/ArchVis/SampleScene/Tree` |
 
 脚本会检查源目录是否存在。UE 资源按其自身条款使用，不包含在公开仓库中。
+
+角色开火动画复用上述 `High/Characters/Content` 中的官方序列：
+
+| Unreal 路径 | 用途 |
+| --- | --- |
+| `/Game/Characters/Mannequins/Anims/Pistol/MF_Pistol_Idle_ADS` | 手枪瞄准基础姿态 |
+| `/Game/Characters/Mannequins/Anims/Pistol/MM_Pistol_Fire` | 手枪后坐力，Mesh Space Additive |
+| `/Game/Characters/Mannequins/Anims/Rifle/MF_Rifle_Idle_ADS` | 步枪瞄准基础姿态 |
+| `/Game/Characters/Mannequins/Anims/Rifle/MM_Rifle_Fire` | 步枪后坐力，Mesh Space Additive |
+
+`restore_engine_assets.py` 已包含这些序列及其骨骼依赖。攀爬动画由 `ExplorerAnimation.cpp` 在运行时生成，不需要额外下载攀爬动作文件。压缩 GIF 是本工程实机动作捕获，源帧不上传。
 
 ## 恢复步骤
 

@@ -41,10 +41,16 @@ public:
     void SprintStart(); void SprintStop(); void Pistol(); void Rifle(); void Journal(); void FreshStart();
     bool TryLedge(const FVector& At, const FVector& Direction, FVector& Edge, FVector& Normal) const;
     bool BeginWallGrip(); bool MoveWallGrip(float Horizontal,float Vertical); void UpdateClimbPose();
+    static constexpr float GripTransferDuration=.76f, RoofEntryDuration=1.10f, MantleDuration=1.10f;
     int32 CurrentGrip=-1, TargetGrip=-1;
     float ReachTime=0, GripCooldown=0;
     bool bEnteringFromRoof=false;
     FVector ReachStart;
+    bool bLeadRight=true;
+    float GrabTime=1, AnimationClock=0, ArmAnimationAlpha=0, FireAnimationTime=-1;
+    FVector GrabHands[2],GrabFeet[2],AnimatedHands[2],AnimatedFeet[2];
+    UPROPERTY() TArray<TObjectPtr<class UAnimSequence>> WeaponIdleAnimations;
+    UPROPERTY() TArray<TObjectPtr<class UAnimSequence>> WeaponFireAnimations;
     UPROPERTY(VisibleAnywhere) TObjectPtr<class UPoseableMeshComponent> ClimbPose;
     bool BeginHang(); bool BeginMantle(); void Respawn(); void SaveCheckpoint();
     bool ReceiveLoot(AExpeditionLoot* Loot);
@@ -78,4 +84,5 @@ private:
     float ForwardInput=0, RightInput=0;
     void Equip(int32 Index);
     void RefreshLoot();
+    void BeginGrabAnimation();
 };

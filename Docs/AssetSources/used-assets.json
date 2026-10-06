@@ -137,5 +137,20 @@
     "handhold_count": 23,
     "plateau_height_m": 22,
     "tower_climb_height_m": 28
+  },
+  "character_animations": {
+    "source": "Templates/TemplateResources/High/Characters/Content",
+    "license": "Unreal Engine template content; restore from your own engine installation",
+    "official_sequences": [
+      "/Game/Characters/Mannequins/Anims/Pistol/MF_Pistol_Idle_ADS",
+      "/Game/Characters/Mannequins/Anims/Pistol/MM_Pistol_Fire",
+      "/Game/Characters/Mannequins/Anims/Rifle/MF_Rifle_Idle_ADS",
+      "/Game/Characters/Mannequins/Anims/Rifle/MM_Rifle_Fire"
+    ],
+    "climbing": "Original runtime limb and body animation in Source/LostExpedition/ExplorerAnimation.cpp",
+    "previews": [
+      "Docs/Images/climbing-animation.gif",
+      "Docs/Images/firing-animation.gif"
+    ]
   }
 }

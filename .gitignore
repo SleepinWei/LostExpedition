@@ -18,6 +18,7 @@ __pycache__/
 *.png
 *.jpg
 *.jpeg
+*.gif
 *.tga
 *.exr
 *.hdr
@@ -49,3 +50,5 @@ __pycache__/
 !/Docs/Images/island-beach.jpg
 !/Docs/Images/island-tower.jpg
 !/Docs/Images/tower-gameplay.jpg
+!/Docs/Images/climbing-animation.gif
+!/Docs/Images/firing-animation.gif
