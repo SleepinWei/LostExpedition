@@ -11,10 +11,10 @@ parser.add_argument('--wall-climb-only', action='store_true')
 args = parser.parse_args()
 output = project / 'Docs/Images'
 output.mkdir(exist_ok=True)
-clips = [('climbing-animation', 'WallClimbFrames', 0, 180)] if args.wall_climb_only else [('motion-matching', 'MotionMatchingFrames', 0, 288)] if args.motion_matching_only else [('climbing-animation', 'AnimationFrames', 0, 160), ('firing-animation', 'AnimationFrames', 160, 330)]
+clips = [('climbing-animation', 'WallClimbFrames', 0, 300)] if args.wall_climb_only else [('motion-matching', 'MotionMatchingFrames', 0, 288)] if args.motion_matching_only else [('climbing-animation', 'AnimationFrames', 0, 160), ('firing-animation', 'AnimationFrames', 160, 330)]
 for name, directory, start, end in clips:
     source = project / 'Docs' / directory
-    stride = 3 if name == 'motion-matching' or directory == 'WallClimbFrames' else 2
+    stride = 3 if name == 'motion-matching' else 2
     indices = list(range(start, end, stride))
     if name == 'motion-matching' or directory == 'WallClimbFrames':
         # A slow render can coalesce screenshot requests. Read the current run's
@@ -24,7 +24,12 @@ for name, directory, start, end in clips:
             captured = sorted({int(value) for value in re.findall(r'Tracing Screenshot "(\d+)"', log.read_text(errors='replace'))})
             if not captured:
                 raise SystemExit('No completed Motion Matching screenshots in the current capture log')
-            indices = [min(captured, key=lambda value: abs(value - index)) for index in indices]
+            if directory == 'WallClimbFrames':
+                missing_current = sorted(set(range(480)) - set(captured))
+                if missing_current:
+                    raise SystemExit(f'Incomplete current wall-climb capture: {missing_current}')
+            else:
+                indices = [min(captured, key=lambda value: abs(value - index)) for index in indices]
     paths = [source / f'{index:04d}.png' for index in indices]
     missing = [path.name for path in paths if not path.is_file()]
     if missing:
@@ -38,7 +43,7 @@ for name, directory, start, end in clips:
             sample.thumbnail((96, 60), Image.Resampling.LANCZOS)
             swatches.paste(sample, (0, index * 60))
     palette = swatches.quantize(colors=64)
-    widths = [320, 300, 288] if name == 'motion-matching' else [480, 440, 420, 400, 360, 320]
+    widths = [320, 300, 288] if name == 'motion-matching' else [480, 440, 400, 360, 320, 300, 280, 260, 240]
     for width in widths:
         frames = []
         for path in paths:
@@ -58,7 +63,7 @@ for name, directory, start, end in clips:
                         font = ImageFont.load_default()
                     draw.text((10, frame.height-22), caption, fill=(238, 206, 137), font=font)
                 frames.append(frame.quantize(palette=palette, dither=Image.Dither.NONE))
-        frames[0].save(destination, save_all=True, append_images=frames[1:], duration=round(stride * 1000 / (30 if directory == 'WallClimbFrames' else 24)), loop=0, optimize=True)
+        frames[0].save(destination, save_all=True, append_images=frames[1:], duration=[round((i+1)*stride*100/(60 if directory == 'WallClimbFrames' else 24))*10-round(i*stride*100/(60 if directory == 'WallClimbFrames' else 24))*10 for i in range(len(frames))], loop=0, optimize=True)
         if destination.stat().st_size < 2_500_000:
             break
     else:

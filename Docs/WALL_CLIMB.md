@@ -5,12 +5,27 @@ The clothed **Diesel** character now presents the complete action pose. Manny re
 | Stage | Input and behavior | Animation |
 | --- | --- | --- |
 | Exploratory reach | Approach the first grip or press E. On the wall, WASD selects an adjacent grip. The capsule stays at its current support. | Ground reach or mirrored left/right probe; torso/neck turn, leading arm extension and partially open fingers |
-| Jump to grab | Space commits the selected grip. Early presses retain at least 0.18 s of anticipation. | Mirrored full-body leap, push-off, tucked legs, reaching arms and closing fingers; capsule follows a swept arc |
-| Secure catch | Contact automatically enters a 0.32 s recovery before another leap. | Two-hand catch, torso compression, knee bracing and recovery to hanging idle |
+| Jump to grab | Space commits the selected grip. Early presses retain at least 0.16 s of anticipation. | Mirrored full-body leap, push-off, tucked legs, reaching arms and closing fingers; capsule follows a swept arc |
+| Secure catch | Contact automatically enters a 0.22 s recovery before another leap. | Two-hand catch, torso compression, knee bracing and recovery to hanging idle |
 
 Holding direction selects another grip after a catch and waits for Space. A single Space press during flight can queue one next leap. At the final hold, Space tops out. Ctrl drops from the wall or cancels a standing probe; opening the journal cancels an uncommitted probe. Newly obstructed flight paths restore falling rather than passing through geometry. Roof entry continues to route the capsule over the parapet before lowering it onto the highest hold.
 
-Seven project-authored `AnimSequence` assets under `/Game/Animation/WallClimb/` provide the full-body base: `AS_Probe_Ground`, `AS_Probe_Left`, `AS_Probe_Right`, `AS_Jump_Left`, `AS_Jump_Right`, `AS_Catch`, `AS_Hang`. The reproducible keyframe authoring function in `ExplorerAnimation.cpp` generates every source-skeleton track at 30 Hz. They are keyframed prototype actions, not imported motion capture. World-space grip/foot IK adapts these actions to the tower's geometry. Climbing uses explicit sequence phases; ground Motion Matching remains active. Root-motion Motion Warping is not enabled.
+The runtime uses `AS_Hang` as one shared authored base. Continuous quintic reach curves, push-off, torso weight transfer, catch absorption and asynchronous foot transfers produce all three stages. Seven generated sequences remain available as authoring references, but the runtime no longer swaps their incompatible root poses at stage boundaries. These are procedural prototype actions, not imported motion capture. Ground Motion Matching remains active; root-motion Motion Warping is not enabled.
+
+## Continuity rebuild
+
+The earlier implementation passed gameplay checks but still snapped when a probe changed direction. A repeatable 60 Hz input trace recorded a **41.964 cm** visible-joint step and a **101.730 degree** joint rotation in one frame. Functional success did not establish animation quality.
+
+- Capture the displayed rig's hand/foot positions whenever a new probe or transfer starts. Interrupted reaches continue from those positions, including when the lead hand changes.
+- Keep one persistent critically damped **pre-contact** pose for the source skeleton and one after retargeting. Final IK is never fed back into the spring; doing that caused repeated body corrections. Preserve the exit into ground locomotion as well.
+- Lock support boots in world space. Trace new foot targets once at jump commitment. Move the hands before the body overtakes them, then transfer the feet separately on outward arcs that clear the protruding stone rails.
+- An exploratory free hand cannot drag the torso away from its supporting hand. Visible hands target the contact plan directly instead of chasing an already-clamped source wrist.
+- Use curves with zero endpoint velocity/acceleration for capsule transfer and endpoint velocity for limb arcs. Smooth wrist orientation/finger closure and use soft leg extension during flight to avoid knee locking. Persistent knee bend planes prevent pole-vector flips; foot targets leave enough bend for the actual character proportions.
+- Shorten anticipation/catch recovery to 0.16/0.22 s and carry unused catch time into the next stage. One buffered Space still commits only one additional grip.
+
+The rebuilt trace measures **0.0861 cm** maximum step on probe direction changes (previously 41.9643 cm) and **19.342 degrees** maximum joint rotation per frame (previously 101.7296 degrees). Maximum action-boundary step is **1.910 cm**. These results cover the scripted scenarios, not every possible input or pose.
+
+The runtime suite samples 13 visible joints across vertical, horizontal and interrupted-direction traces. It checks probe retarget continuity, action-boundary displacement, angular steps, planted boots and 30/120 Hz visible pelvis agreement. Raw CSV traces stay local; [the small summary](climb-continuity-summary.json) records scope and results. The [60 fps video](Images/wall-climb-60fps.mp4) contains actual engine renders of ground entry, buffered vertical transfers, a deliberate cut to a high horizontal hold, and horizontal-to-vertical chaining. Its fixed simulation timestep does not measure hardware performance.
 
 ## Character source and restoration
 
@@ -27,4 +42,4 @@ Generated assets, original downloads and raw capture frames are excluded from Gi
 
 ## Validation
 
-UE 5.8.3 Mac Development build succeeds; **112 runtime checks pass with zero failures**. The full tower route, horizontal transfers, descent, mantle and gameplay regressions pass. Fixed tests measure maximum secure-contact hand error at **0.000 cm**, foot error at **4.122 cm** (within the 8 cm acceptance limit), and 30/120 Hz capsule-path difference at **0.000 cm**; this applies to the tested poses, not every possible configuration or rendered frame rate. The setup script has been exercised from the downloaded GLB through both rig creation and all seven saved sequences. See [runtime-test.txt](runtime-test.txt), [explorer-character-setup.txt](explorer-character-setup.txt) and [wall-climb-setup.txt](wall-climb-setup.txt).
+UE 5.8.3 Mac Development build succeeds; **117 runtime checks pass with zero failures**. The full tower route, horizontal transfers, descent, mantle and gameplay regressions pass. Fixed tests measure maximum secure-contact hand error at **0.000 cm**, foot error at **0.000 cm** (within the 8 cm acceptance limit), and 30/120 Hz capsule-path difference at **0.000 cm**; this applies to the tested poses, not every possible configuration or rendered frame rate. The setup script has been exercised from the downloaded GLB through both rig creation and all seven saved sequences. See [runtime-test.txt](runtime-test.txt), [explorer-character-setup.txt](explorer-character-setup.txt) and [wall-climb-setup.txt](wall-climb-setup.txt).

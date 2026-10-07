@@ -1,6 +1,7 @@
 #pragma once
 #include "CoreMinimal.h"
 #include "Components/PoseableMeshComponent.h"
+#include "ExplorerPoseSpring.h"
 #include "ExplorerVisualComponent.generated.h"
 
 struct FExplorerRetargetState;
@@ -15,8 +16,15 @@ public:
     virtual ~UExplorerVisualComponent() override;
     void Present(UPoseableMeshComponent* Source, float DeltaTime);
     bool IsRetargetReady() const;
+    void SmoothWallPose(float DeltaTime,bool Wall);
+    void StoreVisualPose();
+    void ResetSmoothing();
     class USkeletalMesh* GetCharacterMesh() const;
     UPROPERTY() TObjectPtr<class UIKRetargeter> RetargetAsset;
 private:
     TSharedPtr<FExplorerRetargetState> Retarget;
+    FExplorerPoseSpring WallSpring;
+    TArray<FTransform> LastPresented;
+    bool bWasWall=false;
+    float ExitBlendRemaining=0;
 };

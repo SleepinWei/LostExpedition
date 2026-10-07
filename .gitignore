@@ -57,3 +57,7 @@ __pycache__/
 
 /ArtSource/Characters/
 /ArtSource/Animations/
+
+# Full-rate review video is small; raw continuity traces and iterations stay local.
+/Docs/climb-continuity.csv
+/Docs/climb-iteration*.mp4

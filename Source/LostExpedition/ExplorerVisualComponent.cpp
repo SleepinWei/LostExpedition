@@ -33,3 +33,15 @@ void UExplorerVisualComponent::Present(UPoseableMeshComponent* Source,float Delt
     }
     MarkRefreshTransformDirty();RefreshBoneTransforms();
 }
+
+void UExplorerVisualComponent::ResetSmoothing(){WallSpring.Reset();LastPresented.Reset();bWasWall=false;ExitBlendRemaining=0;}
+void UExplorerVisualComponent::SmoothWallPose(float DeltaTime,bool Wall) {
+    if(Wall)ExitBlendRemaining=.25f;else ExitBlendRemaining=FMath::Max(0.f,ExitBlendRemaining-DeltaTime);
+    if(Wall||ExitBlendRemaining>0) {
+        if(Wall!=bWasWall&&LastPresented.Num()==BoneSpaceTransforms.Num())WallSpring.Seed(LastPresented);
+        WallSpring.Evaluate(BoneSpaceTransforms,DeltaTime,30);
+        MarkRefreshTransformDirty();RefreshBoneTransforms();
+    } else WallSpring.Reset();
+    bWasWall=Wall;
+}
+void UExplorerVisualComponent::StoreVisualPose(){LastPresented=BoneSpaceTransforms;}

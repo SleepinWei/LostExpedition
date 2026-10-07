@@ -20,9 +20,10 @@ FQuat FromRotationVector(const FVector& V) {
 }
 }
 void UExplorerPoseComponent::ResetTransition() {
-    PreviousPose.Reset();PreviousClock=-1;PreviousAction=-1;
+    PreviousPose.Reset();PreviousClock=-1;PreviousAction=-1;WallSpring.Reset();WallClock=-1;
 }
 void UExplorerPoseComponent::BlendActionTransition(float Clock,int32 Action) {
+    WallSpring.Reset();WallClock=-1;
     const int32 Count=BoneSpaceTransforms.Num();
     if(PreviousPose.Num()!=Count)return;
     if(Action!=PreviousAction) {
@@ -66,4 +67,10 @@ void UExplorerPoseComponent::StorePresentedPose(float Clock) {
     }
     // Re-evaluations within the same frame must not overwrite the velocity history.
     if(Delta>SMALL_NUMBER||PreviousClock<0){PreviousPose=BoneSpaceTransforms;PreviousClock=Clock;PreviousComponentTransform=GetComponentTransform();}
+}
+
+void UExplorerPoseComponent::SmoothWallPose(float Clock) {
+    if(WallClock<0&&PreviousPose.Num()==BoneSpaceTransforms.Num())WallSpring.Seed(PreviousPose);
+    WallSpring.Evaluate(BoneSpaceTransforms,WallClock<0?0:Clock-WallClock);
+    WallClock=Clock;PreviousAction=1;MarkRefreshTransformDirty();RefreshBoneTransforms();
 }

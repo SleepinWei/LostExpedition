@@ -77,3 +77,6 @@ Game Animation Sample is optional expanded content, not a prerequisite for the i
 3. Re-run the gameplay/contact suite and compare starts, stops, sharp turns, landing and the full tower route in real playback.
 
 Rope traversal, physical secondary animation, sound and cinematic polish remain later work. This is a functioning prototype with Motion Matching, not a claim of Uncharted's production animation quality.
+
+
+The continuity rebuild replaces runtime stage-clip swapping with a shared base pose, persistent pre-contact pose springs on both rigs, fixed support feet and continuous probe/transfer/catch curves. Interrupted probes now start from the displayed hands. See [WALL_CLIMB.md](WALL_CLIMB.md) and [climb-continuity-summary.json](climb-continuity-summary.json) for measured results and the full-rate review.

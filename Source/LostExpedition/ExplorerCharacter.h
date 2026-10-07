@@ -42,7 +42,7 @@ public:
     bool TryLedge(const FVector& At, const FVector& Direction, FVector& Edge, FVector& Normal) const;
     bool BeginWallGrip(); bool MoveWallGrip(float Horizontal,float Vertical); void UpdateClimbPose();
     static constexpr float GripTransferDuration=.76f, RoofEntryDuration=1.10f, MantleDuration=1.10f;
-    static constexpr float ProbeMinimumTime=.18f, CatchDuration=.32f;
+    static constexpr float ProbeMinimumTime=.16f, CatchDuration=.22f;
     float ProbeTime=0, CatchTime=0;
     bool bGroundProbe=false, bProbeJumpRequested=false, bBufferedGripJump=false;
     bool ProbeGrip(int32 Candidate);
@@ -61,6 +61,8 @@ public:
     float GrabTime=1, AnimationClock=0, ArmAnimationAlpha=0, FireAnimationTime=-1;
     float PreviousFireAnimationTime=-1,FireBlendTime=1;
     FVector GrabHands[2],GrabFeet[2],AnimatedHands[2],AnimatedFeet[2];
+    FVector PlantedFeet[2],TransferFeet[2];
+    FVector FindWallFoot(const FVector& Body,int32 Index) const;
     UPROPERTY() TArray<TObjectPtr<class UAnimSequence>> WeaponIdleAnimations;
     UPROPERTY() TArray<TObjectPtr<class UAnimSequence>> WeaponFireAnimations;
     UPROPERTY() TArray<TObjectPtr<class UAnimSequence>> WeaponReloadAnimations;
@@ -100,7 +102,12 @@ public:
     void RunSmokeTest();
 private:
     float ForwardInput=0, RightInput=0;
-    float LastVisualAnimationClock=-1;
+    float LastVisualAnimationClock=-1,LastSourceIKClock=-1;
+    FVector SourceKneeBend[2]={FVector::ZeroVector,FVector::ZeroVector};
+    FVector VisualKneeBend[2]={FVector::ZeroVector,FVector::ZeroVector};
+    FQuat VisualWrist[2]={FQuat::Identity,FQuat::Identity};
+    float VisualCurl[2]={0,0};
+    bool bVisualWasWall=false;
     int32 FindGrip(int32 From,const FVector2D& Input) const;
     bool StartGripTransfer(int32 Candidate);
     void UpdateTraversal(float DeltaTime);

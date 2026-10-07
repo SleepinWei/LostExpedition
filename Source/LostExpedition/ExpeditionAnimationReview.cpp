@@ -1,6 +1,7 @@
 #include "ExpeditionGameMode.h"
 #include "ExplorerCharacter.h"
 #include "ExplorerPoseComponent.h"
+#include "ExplorerVisualComponent.h"
 #include "ExpeditionActors.h"
 #include "ExpeditionTower.h"
 #include "ExpeditionWorld.h"
@@ -44,7 +45,7 @@ void AExpeditionGameMode::CaptureAnimationFrame() {
         auto* P=*It;const int32 Frame=AnimationReviewFrame;
         auto Grip=[&](int32 Index){
             P->Drop();P->Traversal=ETraversalState::Walking;P->SetActorLocation(ExpeditionTower::HangPosition(Index)+ExpeditionTower::WallNormal*40);
-            P->SetActorRotation(FRotator::ZeroRotator);P->LedgeCooldown=0;P->CurrentGrip=P->TargetGrip=Index;P->Ledge=ExpeditionTower::Grip(Index);P->WallNormal=ExpeditionTower::WallNormal;P->bGroundProbe=false;P->Traversal=ETraversalState::Clinging;P->SetActorLocation(ExpeditionTower::HangPosition(Index));P->GetCharacterMovement()->SetMovementMode(MOVE_Flying);CastChecked<UExplorerPoseComponent>(P->ClimbPose)->ResetTransition();
+            P->SetActorRotation(FRotator::ZeroRotator);P->LedgeCooldown=0;P->CurrentGrip=P->TargetGrip=Index;P->Ledge=ExpeditionTower::Grip(Index);P->WallNormal=ExpeditionTower::WallNormal;P->bGroundProbe=false;P->Traversal=ETraversalState::Clinging;P->SetActorLocation(ExpeditionTower::HangPosition(Index));P->GetCharacterMovement()->SetMovementMode(MOVE_Flying);for(int32 I=0;I<2;I++)P->PlantedFeet[I]=P->FindWallFoot(P->GetActorLocation(),I);CastChecked<UExplorerPoseComponent>(P->ClimbPose)->ResetTransition();P->CharacterVisual->ResetSmoothing();
         };
         if(Frame==0)Grip(1);
         if(Frame==8){P->GripCooldown=0;P->Forward(1);}

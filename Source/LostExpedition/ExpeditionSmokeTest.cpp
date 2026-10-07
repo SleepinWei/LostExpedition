@@ -135,18 +135,57 @@ void AExplorerCharacter::RunSmokeTest() {
         Drop();Traversal=ETraversalState::Walking;GetCharacterMovement()->SetMovementMode(MOVE_Walking);
         SetActorLocation(ExpeditionTower::HangPosition(Index)+FVector(-40,0,0));SetActorRotation(FRotator::ZeroRotator);LedgeCooldown=0;BeginWallGrip();JumpOrClimb();Advance(1.4f);GripCooldown=0;
     };
+    // Measure the visible rig, including retargeting and final contact IK, at 60 Hz.
+    // Keep the same input trace for the before/after comparison.
+    FString Continuity=TEXT("scenario,frame,stage,bone,x,y,z,step_cm,rotation_deg\n");
+    float MaxJointStep=0,MaxJointRotation=0,MaxBoundaryStep=0,MaxRetargetStep=0,MaxPlantedFootStep=0;
+    const FName ReviewBones[]={TEXT("mixamorig_Hips"),TEXT("mixamorig_Spine2"),TEXT("mixamorig_Head"),TEXT("mixamorig_LeftArm"),TEXT("mixamorig_LeftForeArm"),TEXT("mixamorig_LeftHand"),TEXT("mixamorig_RightArm"),TEXT("mixamorig_RightForeArm"),TEXT("mixamorig_RightHand"),TEXT("mixamorig_LeftLeg"),TEXT("mixamorig_LeftFoot"),TEXT("mixamorig_RightLeg"),TEXT("mixamorig_RightFoot")};
+    for(int32 Scenario=0;Scenario<3;Scenario++) {
+        ResetGrip(Scenario==1?8:1);
+        TArray<FTransform> Previous;for(FName Bone:ReviewBones)Previous.Add(CharacterVisual->GetBoneTransformByName(Bone,EBoneSpaces::WorldSpace));
+        ETraversalState PreviousStage=Traversal;
+        for(int32 Frame=0;Frame<180;Frame++) {
+            if(Frame==0)MoveWallGrip(Scenario==1?1:0,Scenario==1?0:1);
+            if(Scenario==2&&Frame==12)MoveWallGrip(0,-1);
+            if(Scenario==2&&Frame==24)MoveWallGrip(0,1);
+            if(Frame==36)JumpOrClimb();
+            if(Frame==48){MoveWallGrip(Scenario==1?1:0,Scenario==1?0:1);JumpOrClimb();}
+            Tick(1.f/60);GetMesh()->TickAnimation(1.f/60,false);GetMesh()->RefreshBoneTransforms();UpdateClimbPose();
+            for(int32 Bone=0;Bone<UE_ARRAY_COUNT(ReviewBones);Bone++) {
+                const FTransform Current=CharacterVisual->GetBoneTransformByName(ReviewBones[Bone],EBoneSpaces::WorldSpace);
+                const float Step=FVector::Dist(Current.GetLocation(),Previous[Bone].GetLocation());
+                const float Angle=FMath::RadiansToDegrees(Current.GetRotation().AngularDistance(Previous[Bone].GetRotation()));
+                MaxJointStep=FMath::Max(MaxJointStep,Step);MaxJointRotation=FMath::Max(MaxJointRotation,Angle);
+                if(Traversal!=PreviousStage)MaxBoundaryStep=FMath::Max(MaxBoundaryStep,Step);
+                if(Scenario==2&&(Frame==12||Frame==24))MaxRetargetStep=FMath::Max(MaxRetargetStep,Step);
+                if(Frame<36&&(Bone==10||Bone==12))MaxPlantedFootStep=FMath::Max(MaxPlantedFootStep,Step);
+                const FVector V=Current.GetLocation();
+                Continuity+=FString::Printf(TEXT("%d,%d,%d,%s,%.4f,%.4f,%.4f,%.4f,%.4f\n"),Scenario,Frame,int32(Traversal),*ReviewBones[Bone].ToString(),V.X,V.Y,V.Z,Step,Angle);
+                Previous[Bone]=Current;
+            }
+            PreviousStage=Traversal;
+        }
+    }
+    FFileHelper::SaveStringToFile(Continuity,*(FPaths::ProjectDir()/TEXT("Docs/climb-continuity.csv")));
+    UE_LOG(LogTemp,Display,TEXT("CLIMB_CONTINUITY maxJointStep=%.3f maxJointRotation=%.3f maxBoundaryStep=%.3f"),MaxJointStep,MaxJointRotation,MaxBoundaryStep);
+    Check(MaxRetargetStep<1,TEXT("Changing probe direction preserves the visible pose within one centimetre at 60 Hz"));
+    Check(MaxJointRotation<20,TEXT("Vertical, lateral and interrupted-probe traces have no visible joint rotation over 20 degrees per 60 Hz frame"));
+    Check(MaxBoundaryStep<3,TEXT("Probe, leap, catch and buffered transitions stay below three centimetres per boundary frame"));
+    Check(MaxPlantedFootStep<.2f,TEXT("Planted boots drift less than two millimetres per frame while probing"));
+    UE_LOG(LogTemp,Display,TEXT("CLIMB_CONTINUITY probeRetargetStep=%.4f plantedFootStep=%.4f"),MaxRetargetStep,MaxPlantedFootStep);
+    ResetGrip(0);
     auto* Obstacle=GetWorld()->SpawnActor<AActor>();auto* Box=NewObject<UBoxComponent>(Obstacle);Obstacle->SetRootComponent(Box);Box->SetBoxExtent(FVector(45,55,45));Box->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);Box->SetCollisionResponseToAllChannels(ECR_Block);Box->RegisterComponent();Obstacle->SetActorLocation(ExpeditionTower::HangPosition(1));
     Check(!MoveWallGrip(0,1),TEXT("An obstructed handhold cannot be selected for a reach"));Obstacle->Destroy();
     ResetGrip(0);const FVector SupportedStart=GetActorLocation();Forward(1);Advance(.7f);
     Check(Traversal==ETraversalState::Probing&&CurrentGrip==0&&TargetGrip==1&&GetActorLocation().Equals(SupportedStart,.01f),TEXT("Held direction probes the next grip while the body remains supported"));
     Forward(0);Advance(.2f);Check(Traversal==ETraversalState::Probing,TEXT("The selected handhold waits for Space after direction release"));
     Journal();Advance(.03f);Check(Traversal==ETraversalState::Clinging&&!bProbeJumpRequested,TEXT("Opening the journal cancels a probe without launching a jump"));Journal();
-    FVector RatePositions[3];float LargestContactError=0,LargestFootError=0;
+    FVector RatePositions[3],RatePelvis[3];float LargestContactError=0,LargestFootError=0;
     const int32 Rates[3]={30,60,120};
     for(int R=0;R<3;R++) {
         ResetGrip(0);MoveWallGrip(0,1);Advance(.3f);JumpOrClimb();
         for(int F=0;F<Rates[R]*.4f;F++){Tick(1.f/Rates[R]);UpdateClimbPose();}
-        RatePositions[R]=GetActorLocation();
+        RatePositions[R]=GetActorLocation();RatePelvis[R]=CharacterVisual->GetBoneLocationByName(TEXT("mixamorig_Hips"),EBoneSpaces::WorldSpace);
         Check(Traversal==ETraversalState::GripJump,FString::Printf(TEXT("Space leap evaluates between grips at %d Hz"),Rates[R]));
         Advance(.9f);Check(Traversal==ETraversalState::Clinging&&CurrentGrip==1,TEXT("A jump command catches exactly one selected grip"));
         for(int Index=0;Index<2;Index++) {
@@ -157,6 +196,7 @@ void AExplorerCharacter::RunSmokeTest() {
     }
     UE_LOG(LogTemp,Display,TEXT("ACTION_CONTACT maxSupportError=%.3f maxFootError=%.3f rateDelta=%.3f"),LargestContactError,LargestFootError,FVector::Dist(RatePositions[0],RatePositions[2]));
     Check(FVector::Dist(RatePositions[0],RatePositions[2])<1,TEXT("30 and 120 Hz jump paths agree within one centimetre"));
+    Check(FVector::Dist(RatePelvis[0],RatePelvis[2])<4,TEXT("The visible pelvis at 30 and 120 Hz agrees within four centimetres during flight"));
     Check(LargestFootError<8,TEXT("The clothed character's planted feet match the wall within eight centimetres"));
     Check(LargestContactError<8,TEXT("The clothed character's hands match the stone holds within eight centimetres"));
     ResetGrip(0);MoveWallGrip(0,1);JumpOrClimb();Check(Traversal==ETraversalState::Probing,TEXT("An early Space press preserves a minimum visible anticipation"));

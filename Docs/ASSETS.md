@@ -99,3 +99,8 @@ Scripts/SetupExplorer.command /absolute/path/to/Diesel.glb
 8. 打开地图并 Play；Mac 可用 `Scripts/PlayTower.command` 直达塔下。运行 `Scripts/SmokeTest.command` 检查素材引用、三阶段攀爬及其他玩法。
 
 `ArtSource/CoastalRemake/weathered_block.obj`、`cliff_core.obj` 与 `.mtl` 是小体积的自制几何源文件，保留在 Git 中。当前岛体直接由 C++ 程序网格生成。最新运行结果见 `Docs/runtime-test.txt`；新克隆完成素材恢复后，应重新运行检查确认导入结果。
+
+
+## Higher-detail character candidates (not installed)
+
+Priority: free assets first, then paid characters, then a custom MetaHuman. [Epic City Sample Crowds](https://www.fab.com/listings/903037e9-e1ac-4f41-96e8-1683c6fa7ad4?lang=en) is the first candidate: the official free UE-only pack includes rigged head/body meshes adapted from MetaHumans and modular clothes, hair and accessories. An explorer outfit and action retargeting still require adaptation; this is not a ready-made Drake character. [Mixamo](https://www.mixamo.com/) is another free source of rigged characters and actions ([Adobe FAQ](https://helpx.adobe.com/creative-cloud/faq/mixamo-faq.html)). Neither pack has been imported. Any source downloads, meshes and textures stay local; public Git retains source links and setup code.

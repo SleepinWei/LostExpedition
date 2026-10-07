@@ -1,5 +1,5 @@
 Lost Expedition runtime smoke test
-112 checks; 0 failures
+117 checks; 0 failures
 
 PASS: Continuous island terrain generated with collision
 PASS: Tropical palms, canopy trees and dense grass are instanced
@@ -31,6 +31,10 @@ PASS: Space explicitly launches the jump-to-grab stage
 PASS: Landing on a handhold enters the secure catch animation
 PASS: The catch settles into a supported hang on the first handle
 PASS: Intermediate wall handles cannot be used as walkable platforms
+PASS: Changing probe direction preserves the visible pose within one centimetre at 60 Hz
+PASS: Vertical, lateral and interrupted-probe traces have no visible joint rotation over 20 degrees per 60 Hz frame
+PASS: Probe, leap, catch and buffered transitions stay below three centimetres per boundary frame
+PASS: Planted boots drift less than two millimetres per frame while probing
 PASS: An obstructed handhold cannot be selected for a reach
 PASS: Held direction probes the next grip while the body remains supported
 PASS: The selected handhold waits for Space after direction release
@@ -42,6 +46,7 @@ PASS: A jump command catches exactly one selected grip
 PASS: Space leap evaluates between grips at 120 Hz
 PASS: A jump command catches exactly one selected grip
 PASS: 30 and 120 Hz jump paths agree within one centimetre
+PASS: The visible pelvis at 30 and 120 Hz agrees within four centimetres during flight
 PASS: The clothed character's planted feet match the wall within eight centimetres
 PASS: The clothed character's hands match the stone holds within eight centimetres
 PASS: An early Space press preserves a minimum visible anticipation
@@ -114,7 +119,7 @@ PASS: Checkpoint save roundtrip
 PASS: Death returns to checkpoint
 PASS: Grenade applies radial damage
 
-Fixed-step contact metrics: support hand 0.000 cm; planted foot 4.122 cm; 30/120 Hz body path difference 0.000 cm.
+Fixed-step contact metrics: support hand 0.000 cm; planted foot 0.000 cm; 30/120 Hz body path difference 0.000 cm.
 
 Evaluated Motion Matching selections:
 PSD_Unarmed / MF_Unarmed_Jog_Fwd @ 0.736 s; cost -0.000; speed 650.0; requested PSD_Unarmed

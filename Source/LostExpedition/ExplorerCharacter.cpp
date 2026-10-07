@@ -336,7 +336,7 @@ bool AExplorerCharacter::StartGripTransfer(int32 Candidate) {
     if(GetWorld()->SweepSingleByChannel(Hit,GetActorLocation(),ExpeditionTower::HangPosition(Candidate),FQuat::Identity,ECC_Pawn,FCollisionShape::MakeCapsule(38,94),Query)) {
         bProbeJumpRequested=false;Notify(TEXT("The next handhold is obstructed"));return false;
     }
-    BeginGrabAnimation();ReachDuration=FMath::Clamp(FVector::Dist(GetActorLocation(),ExpeditionTower::HangPosition(Candidate))/230.f,.60f,GripTransferDuration);
+    BeginGrabAnimation();for(int32 I=0;I<2;I++){GrabFeet[I]=PlantedFeet[I];TransferFeet[I]=FindWallFoot(ExpeditionTower::HangPosition(Candidate),I);}ReachDuration=FMath::Clamp(FVector::Dist(GetActorLocation(),ExpeditionTower::HangPosition(Candidate))/230.f,.60f,GripTransferDuration);
     bEnteringFromRoof=false;TargetGrip=Candidate;ReachStart=GetActorLocation();ReachTime=0;Traversal=ETraversalState::GripJump;TraversalVelocity=FVector::ZeroVector;bProbeJumpRequested=false;
     StopFire();bReloading=false;return true;
 }
@@ -370,17 +370,18 @@ void AExplorerCharacter::UpdateTraversal(float DT) {
         const float Step=FMath::Min(Remaining,FMath::Max(0.f,ReachDuration-ReachTime));Remaining-=Step;ReachTime+=Step;
         const float T=FMath::Clamp(ReachTime/ReachDuration,0.f,1.f);
         const FVector End=ExpeditionTower::HangPosition(TargetGrip),Arc=FVector::UpVector*24+WallNormal*7;
-        const float S=FMath::SmoothStep(0.f,1.f,T),Lift=FMath::Square(FMath::Sin(PI*T));
+        const float S=T*T*T*(T*(T*6-15)+10),Lift=64*FMath::Pow(T*(1-T),3);
         const FVector Target=FMath::Lerp(ReachStart,End,S)+Arc*Lift;
         FHitResult Hit;SetActorLocation(Target,true,&Hit);
-        TraversalVelocity=((End-ReachStart)*6*T*(1-T)+Arc*PI*FMath::Sin(2*PI*T))/ReachDuration;
+        TraversalVelocity=((End-ReachStart)*30*T*T*FMath::Square(1-T)+Arc*192*T*T*FMath::Square(1-T)*(1-2*T))/ReachDuration;
         if(Hit.bBlockingHit){Drop();Notify(TEXT("Reach interrupted / falling"));}
         else if(T>=1) {
+            for(int32 I=0;I<2;I++)PlantedFeet[I]=TransferFeet[I];
             CurrentGrip=TargetGrip;Ledge=ExpeditionTower::Grip(CurrentGrip);Traversal=ETraversalState::Catching;CatchTime=0;TraversalVelocity=FVector::ZeroVector;
         }
     }
     if(Traversal==ETraversalState::Catching) {
-        CatchTime+=Remaining;Remaining=0;
+        CatchTime+=Remaining;const float CatchRemainder=FMath::Max(0.f,CatchTime-CatchDuration);Remaining=0;
         if(CatchTime>=CatchDuration) {
             Traversal=ETraversalState::Clinging;bGroundProbe=false;
             FVector2D Command=!Input.IsNearlyZero(.15f)?Input:BufferedTraversalInput;
@@ -388,6 +389,7 @@ void AExplorerCharacter::UpdateTraversal(float DT) {
             if(Next&&CurrentGrip==ExpeditionTower::Steps-1)BeginMantle();
             else if(Next) {if(ProbeGrip(FindGrip(CurrentGrip,Command.IsNearlyZero(.15f)?FVector2D(0,1):Command)))bProbeJumpRequested=true;}
             else if(!Command.IsNearlyZero(.15f))ProbeGrip(FindGrip(CurrentGrip,Command));
+            if(CatchRemainder>KINDA_SMALL_NUMBER)UpdateTraversal(CatchRemainder);
         }
     }
     // Reverse mantle is the sole legacy reaching path, routed above the parapet.
