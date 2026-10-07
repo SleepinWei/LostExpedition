@@ -15,6 +15,7 @@ private:
     void StartAnimationReview();
     void CaptureAnimationFrame();
     void CaptureMotionMatchingFrame();
+    void CaptureWallClimbFrame();
     FTimerHandle AnimationReviewTimer;
     int32 AnimationReviewFrame=0;
     UPROPERTY() TObjectPtr<class ACameraActor> AnimationReviewCamera;

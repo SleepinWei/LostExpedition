@@ -1,0 +1,5 @@
+Real UE 5.8.3 rendered review
+180 evaluated frames at 30 Hz; 180 completed screenshots
+Ground reach / Space leap / secure catch
+Vertical transfer, then horizontal transfer
+Visible mesh: Diesel; hidden animation source: Manny

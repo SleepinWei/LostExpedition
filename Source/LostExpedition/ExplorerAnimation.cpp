@@ -1,6 +1,7 @@
 #include "ExplorerCharacter.h"
 #include "ExplorerPoseComponent.h"
 #include "ExplorerMotionMatching.h"
+#include "ExplorerVisualComponent.h"
 #include "ExpeditionTower.h"
 #include "Components/PoseableMeshComponent.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -13,7 +14,17 @@
 #include "AnimationRuntime.h"
 #include "Misc/MemStack.h"
 #include "Engine/SkinnedAsset.h"
+#include "Engine/SkeletalMesh.h"
 #include "Engine/SkeletalMeshSocket.h"
+#if WITH_EDITOR
+#include "Animation/Skeleton.h"
+#include "Animation/AnimData/IAnimationDataController.h"
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "Editor.h"
+#include "HAL/FileManager.h"
+#include "Misc/PackageName.h"
+#include "UObject/SavePackage.h"
+#endif
 
 namespace {
 float Phase(float Begin,float End,float Time){return FMath::SmoothStep(Begin,End,Time);}
@@ -41,6 +52,14 @@ void RotateBone(UPoseableMeshComponent* Pose,FName Bone,const FVector& Axis,floa
     FTransform Transform=Pose->GetBoneTransformByName(Bone,EBoneSpaces::WorldSpace);
     Transform.SetRotation(FQuat(Axis,FMath::DegreesToRadians(Degrees))*Transform.GetRotation());
     Pose->SetBoneTransformByName(Bone,Transform,EBoneSpaces::WorldSpace);
+}
+void ApplyWallClip(UPoseableMeshComponent* Mesh,UAnimSequence* Clip,float Time) {
+    if(!Clip||Mesh->RequiredBones.GetNumBones()==0)return;
+    FMemMark Mark(FMemStack::Get());FCompactPose Pose;Pose.SetBoneContainer(&Mesh->RequiredBones);Pose.ResetToRefPose();
+    FBlendedCurve Curve;Curve.InitFrom(Mesh->RequiredBones);UE::Anim::FStackAttributeContainer Attributes;
+    FAnimationPoseData Data(Pose,Curve,Attributes);Clip->GetAnimationPose(Data,FAnimExtractContext(double(FMath::Clamp(Time,0.f,Clip->GetPlayLength()))));
+    for(FCompactPoseBoneIndex Index:Pose.ForEachBoneIndex())Mesh->BoneSpaceTransforms[Mesh->RequiredBones.MakeMeshPoseIndex(Index).GetInt()]=Pose[Index];
+    Mesh->MarkRefreshTransformDirty();Mesh->RefreshBoneTransforms();
 }
 void ApplyDirectionalLocomotion(UPoseableMeshComponent* Mesh,const TArray<TObjectPtr<UAnimSequence>>& Clips,int32 Weapon,const FVector& LocalVelocity,float Cycle,float Weight) {
     if(Weight<.002f||Clips.Num()!=32||Mesh->RequiredBones.GetNumBones()==0)return;
@@ -126,7 +145,7 @@ FVector ApplyFirearmPose(UPoseableMeshComponent* Mesh,UAnimSequence* Idle,UAnimS
 }
 
 void AExplorerCharacter::BeginGrabAnimation() {
-    auto* Source=ClimbPose->IsVisible()?static_cast<USkinnedMeshComponent*>(ClimbPose):static_cast<USkinnedMeshComponent*>(GetMesh());
+    auto* Source=static_cast<USkinnedMeshComponent*>(ClimbPose);
     GrabHands[0]=Source->GetSocketLocation(TEXT("hand_l"));GrabHands[1]=Source->GetSocketLocation(TEXT("hand_r"));
     GrabFeet[0]=Source->GetSocketLocation(TEXT("foot_l"));GrabFeet[1]=Source->GetSocketLocation(TEXT("foot_r"));
     GrabTime=0;FireAnimationTime=-1;ArmAnimationAlpha=0;
@@ -134,7 +153,7 @@ void AExplorerCharacter::BeginGrabAnimation() {
 void AExplorerCharacter::UpdateClimbPose() {
     const bool Climbing=Traversal!=ETraversalState::Walking;
     // One presentation mesh and a permanent weapon socket avoid visibility and attachment pops.
-    GetMesh()->SetVisibility(false);ClimbPose->SetVisibility(true);
+    GetMesh()->SetVisibility(false);ClimbPose->SetVisibility(!CharacterVisual->GetCharacterMesh());
     WeaponMesh->SetVisibility(!Climbing&&!bCompleted);
     auto* Presentation=CastChecked<UExplorerPoseComponent>(ClimbPose);
     ClimbPose->CopyPoseFromSkeletalComponent(GetMesh());
@@ -158,11 +177,16 @@ void AExplorerCharacter::UpdateClimbPose() {
         RotateBone(ClimbPose,TEXT("spine_01"),FVector::UpVector,FMath::Clamp(AimOffset.Yaw,-90.f,90.f)*AimWeight);
         RotateBone(ClimbPose,TEXT("spine_02"),GetActorRightVector(),-Pitch*.55f);
         RotateBone(ClimbPose,TEXT("spine_03"),GetActorRightVector(),-Pitch*.45f);
-        Presentation->BlendActionTransition(AnimationClock,0);ClimbPose->RefreshBoneTransforms();Presentation->StorePresentedPose(AnimationClock);return;
+        Presentation->BlendActionTransition(AnimationClock,0);ClimbPose->RefreshBoneTransforms();Presentation->StorePresentedPose(AnimationClock);UpdateCharacterVisual();return;
     }
+    int32 ClipIndex=6;float ClipTime=FMath::Fmod(AnimationClock,1.5f);
+    if(Traversal==ETraversalState::Probing){ClipIndex=bGroundProbe?0:(bLeadRight?2:1);ClipTime=ProbeTime;}
+    else if(Traversal==ETraversalState::GripJump){ClipIndex=bLeadRight?4:3;ClipTime=ReachTime/ReachDuration*.72f;}
+    else if(Traversal==ETraversalState::Catching){ClipIndex=5;ClipTime=CatchTime;}
+    if(WallClimbAnimations.IsValidIndex(ClipIndex))ApplyWallClip(ClimbPose,WallClimbAnimations[ClipIndex],ClipTime);
     const FVector Side=FVector::CrossProduct(FVector::UpVector,-WallNormal),Body=GetActorLocation();
     const float Breath=FMath::Sin(AnimationClock*2.6f);
-    FVector Hands[2]={Ledge-Side*24+WallNormal*3,Ledge+Side*24+WallNormal*3};
+    FVector Hands[2]={Ledge-Side*24+WallNormal*3+FVector::UpVector*10,Ledge+Side*24+WallNormal*3+FVector::UpVector*10};
     auto FeetAt=[&](const FVector& At,int Index){
         const FVector Origin=At+Side*(Index==0?-24:24)-FVector(0,0,Index==0?30:36);
         FCollisionQueryParams Query(SCENE_QUERY_STAT(ClimbFoot),false,this);FHitResult Hit;
@@ -171,17 +195,36 @@ void AExplorerCharacter::UpdateClimbPose() {
     };
     FVector Feet[2]={FeetAt(Body,0),FeetAt(Body,1)};
     float Lean=5,LeanSide=Breath*1.2f,RootLower=0;
-    if(Traversal==ETraversalState::Reaching&&!bEnteringFromRoof) {
-        const float T=FMath::Clamp(ReachTime/ReachDuration,0.f,1.f);
-        const FVector From=ExpeditionTower::Grip(CurrentGrip),To=ExpeditionTower::Grip(TargetGrip);
+    if(Traversal==ETraversalState::Probing) {
+        const float T=Phase(0,.45f,ProbeTime);
+        const FVector To=ExpeditionTower::Grip(TargetGrip);
+        const FVector From=bGroundProbe?To:ExpeditionTower::Grip(CurrentGrip);
         for(int Index=0;Index<2;Index++) {
-            const bool Lead=Index==(bLeadRight?1:0);const float H=Phase(Lead?0.f:.40f,Lead?.82f:1.f,T);
-            const FVector Offset=Side*(Index==0?-24:24)+WallNormal*3;
-            Hands[Index]=ReachArc(From+Offset,To+Offset,H,WallNormal,14);
-            const float F=Phase(Lead?.08f:.18f,Lead?.80f:1.f,T);
-            Feet[Index]=ReachArc(FeetAt(ExpeditionTower::HangPosition(CurrentGrip),Index),FeetAt(ExpeditionTower::HangPosition(TargetGrip),Index),F,WallNormal,35);
+            const FVector Offset=Side*(Index==0?-24:24)+WallNormal*3+FVector::UpVector*10;
+            if(bGroundProbe) {
+                // The exploratory reach deliberately stops short of a secure catch.
+                const FVector Test=FMath::Lerp(GrabHands[Index],To+Offset,.70f);
+                Hands[Index]=ReachArc(GrabHands[Index],Test,T,WallNormal,8);
+                Feet[Index]=GrabFeet[Index];
+            } else {
+                const bool Lead=Index==(bLeadRight?1:0);
+                Hands[Index]=Lead?ReachArc(From+Offset,FMath::Lerp(From+Offset,To+Offset,.52f)+WallNormal*9,T,WallNormal,7):From+Offset;
+            }
+        }
+        LeanSide=(bLeadRight?1:-1)*4*T;Lean=bGroundProbe?3:8;
+    } else if(Traversal==ETraversalState::GripJump) {
+        const float T=FMath::Clamp(ReachTime/ReachDuration,0.f,1.f);
+        const FVector To=ExpeditionTower::Grip(TargetGrip);
+        for(int Index=0;Index<2;Index++) {
+            const bool Lead=Index==(bLeadRight?1:0);const float H=Phase(Lead?.10f:.28f,Lead?.88f:1.f,T);
+            const FVector Offset=Side*(Index==0?-24:24)+WallNormal*3+FVector::UpVector*10;
+            Hands[Index]=ReachArc(GrabHands[Index],To+Offset,H,WallNormal,18);
+            const float F=Phase(.16f,Index==0?.95f:1.f,T);
+            Feet[Index]=ReachArc(GrabFeet[Index],FeetAt(ExpeditionTower::HangPosition(TargetGrip),Index),F,WallNormal,26);
         }
         LeanSide=(bLeadRight?1:-1)*7*FMath::Sin(PI*T);Lean=5+9*FMath::Sin(PI*T);
+    } else if(Traversal==ETraversalState::Catching) {
+        Lean=5+12*FMath::Sin(PI*FMath::Clamp(CatchTime/CatchDuration,0.f,1.f));
     } else if(Traversal==ETraversalState::Mantling) {
         const float T=FMath::Clamp(MantleTime/MantleDuration,0.f,1.f);
         const float Crouch=FMath::Sin(PI*T);Lean=65*Crouch;RootLower=-80*Crouch;
@@ -208,10 +251,11 @@ void AExplorerCharacter::UpdateClimbPose() {
     }
     FTransform Root=ClimbPose->GetBoneTransformByName(TEXT("root"),EBoneSpaces::WorldSpace);
     const float WallWeight=Traversal==ETraversalState::Mantling?1-Phase(.55f,1.f,MantleTime/MantleDuration):1;
-    Root.AddToTranslation(-WallNormal*40*WallWeight+FVector(0,0,RootLower+8*WallWeight+Breath*.6f));ClimbPose->SetBoneTransformByName(TEXT("root"),Root,EBoneSpaces::WorldSpace);
+    const bool HasClips=WallClimbAnimations.IsValidIndex(ClipIndex)&&WallClimbAnimations[ClipIndex];
+    Root.AddToTranslation(-WallNormal*(HasClips?12:40)*WallWeight+FVector(0,0,RootLower+(HasClips?0:8)*WallWeight+Breath*.6f));ClimbPose->SetBoneTransformByName(TEXT("root"),Root,EBoneSpaces::WorldSpace);
     RotateBone(ClimbPose,TEXT("spine_01"),Side,Lean);
     RotateBone(ClimbPose,TEXT("spine_02"),-WallNormal,LeanSide);
-    Presentation->BlendActionTransition(AnimationClock,Traversal==ETraversalState::Mantling?2:1);
+    Presentation->BlendActionTransition(AnimationClock,int32(Traversal));
     // Bound the body correction by actual limb lengths. The planted hands drive
     // the torso towards the contact manifold before the four independent IK solves.
     for(int Pass=0;Pass<3;Pass++) {
@@ -230,5 +274,127 @@ void AExplorerCharacter::UpdateClimbPose() {
     SolveLimb(ClimbPose,TEXT("thigh_l"),TEXT("calf_l"),TEXT("foot_l"),Feet[0],Body-WallNormal*90-Side*36-FVector(0,0,15));
     SolveLimb(ClimbPose,TEXT("thigh_r"),TEXT("calf_r"),TEXT("foot_r"),Feet[1],Body-WallNormal*90+Side*36-FVector(0,0,28));
     for(int Index=0;Index<2;Index++){AnimatedHands[Index]=Hands[Index];AnimatedFeet[Index]=Feet[Index];}
-    ClimbPose->RefreshBoneTransforms();Presentation->StorePresentedPose(AnimationClock);
+    ClimbPose->RefreshBoneTransforms();Presentation->StorePresentedPose(AnimationClock);UpdateCharacterVisual();
+}
+
+void AExplorerCharacter::UpdateCharacterVisual() {
+    if(!CharacterVisual||!CharacterVisual->GetCharacterMesh())return;
+    const float DeltaTime=LastVisualAnimationClock<0?0:FMath::Max(0.f,AnimationClock-LastVisualAnimationClock);LastVisualAnimationClock=AnimationClock;
+    CharacterVisual->Present(ClimbPose,DeltaTime);
+    if(!CharacterVisual->IsRetargetReady())return;
+    const FVector Side=GetActorRightVector(),Body=GetActorLocation();
+    const FName Upper[2]={TEXT("mixamorig_LeftArm"),TEXT("mixamorig_RightArm")},Lower[2]={TEXT("mixamorig_LeftForeArm"),TEXT("mixamorig_RightForeArm")},Hand[2]={TEXT("mixamorig_LeftHand"),TEXT("mixamorig_RightHand")};
+    const bool Wall=Traversal!=ETraversalState::Walking;
+    if(Wall&&(!bGroundProbe||Traversal==ETraversalState::Catching))for(int32 Pass=0;Pass<4;Pass++) {
+        FVector Correction=FVector::ZeroVector;int32 Count=0;
+        for(int Index=0;Index<2;Index++) {
+            const FVector Shoulder=CharacterVisual->GetBoneLocationByName(Upper[Index],EBoneSpaces::WorldSpace),Elbow=CharacterVisual->GetBoneLocationByName(Lower[Index],EBoneSpaces::WorldSpace),Wrist=CharacterVisual->GetBoneLocationByName(Hand[Index],EBoneSpaces::WorldSpace);
+            const FVector Target=ClimbPose->GetBoneLocationByName(Index==0?TEXT("hand_l"):TEXT("hand_r"),EBoneSpaces::WorldSpace);
+            const float Excess=FVector::Dist(Shoulder,Target)-(FVector::Dist(Shoulder,Elbow)+FVector::Dist(Elbow,Wrist)-1);
+            if(Excess>0){Correction+=(Target-Shoulder).GetSafeNormal()*Excess;Count++;}
+        }
+        if(!Count)break;
+        FTransform Root=CharacterVisual->GetBoneTransformByName(CharacterVisual->GetBoneName(0),EBoneSpaces::WorldSpace);Root.AddToTranslation((Correction/Count).GetClampedToMaxSize(12));CharacterVisual->SetBoneTransformByName(CharacterVisual->GetBoneName(0),Root,EBoneSpaces::WorldSpace);
+    }
+    for(int Index=0;Index<2;Index++) {
+        const FName SourceHand=Index==0?TEXT("hand_l"):TEXT("hand_r");
+        const FVector Target=ClimbPose->GetBoneLocationByName(SourceHand,EBoneSpaces::WorldSpace);
+        // Match source contact/weapon landmarks after proportions are retargeted.
+        const FVector Elbow=Wall?Body+Side*(Index==0?-65:65)+WallNormal*45+FVector(0,0,45):ClimbPose->GetBoneLocationByName(Index==0?TEXT("lowerarm_l"):TEXT("lowerarm_r"),EBoneSpaces::WorldSpace);
+        if(Wall||ArmAnimationAlpha>.01f)SolveLimb(CharacterVisual,Upper[Index],Lower[Index],Hand[Index],Target,Elbow);
+        if(Wall)SolveLimb(CharacterVisual,Index==0?TEXT("mixamorig_LeftUpLeg"):TEXT("mixamorig_RightUpLeg"),Index==0?TEXT("mixamorig_LeftLeg"):TEXT("mixamorig_RightLeg"),Index==0?TEXT("mixamorig_LeftFoot"):TEXT("mixamorig_RightFoot"),ClimbPose->GetBoneLocationByName(Index==0?TEXT("foot_l"):TEXT("foot_r"),EBoneSpaces::WorldSpace),Body-WallNormal*90+Side*(Index==0?-36:36)-FVector(0,0,20));
+        if(Wall) {
+            const float Weight=Traversal==ETraversalState::Mantling?1-Phase(.55f,1.f,MantleTime/MantleDuration):bGroundProbe&&Traversal==ETraversalState::Probing?Phase(0,.4f,ProbeTime):1;
+            FTransform Wrist=CharacterVisual->GetBoneTransformByName(Hand[Index],EBoneSpaces::WorldSpace);
+            // Diesel's fingers point along local Y; palm Z faces down onto the
+            // stone's top surface. Flex around local X to hook the front edge.
+            const FQuat Overhand=FRotationMatrix::MakeFromYZ(-WallNormal,-FVector::UpVector).ToQuat();
+            Wrist.SetRotation(FQuat::Slerp(Wrist.GetRotation(),Overhand,Weight));CharacterVisual->SetBoneTransformByName(Hand[Index],Wrist,EBoneSpaces::WorldSpace);
+            const bool Lead=Index==(bLeadRight?1:0);
+            float Curl=65;
+            if(Traversal==ETraversalState::Probing&&(bGroundProbe||Lead))Curl=12;
+            else if(Traversal==ETraversalState::GripJump)Curl=FMath::Lerp(12.f,65.f,Phase(.65f,1.f,ReachTime/ReachDuration));
+            const FReferenceSkeleton& Ref=CharacterVisual->GetCharacterMesh()->GetRefSkeleton();
+            for(const TCHAR* Finger:{TEXT("Index"),TEXT("Middle"),TEXT("Ring"),TEXT("Pinky"),TEXT("Thumb")})for(int32 Joint=1;Joint<=3;Joint++) {
+                const FName Bone(*FString::Printf(TEXT("mixamorig_%sHand%s%d"),Index==0?TEXT("Left"):TEXT("Right"),Finger,Joint));const int32 BoneIndex=Ref.FindBoneIndex(Bone);if(BoneIndex<0)continue;
+                const float Angle=Finger==FString(TEXT("Thumb"))?Curl*.45f:Curl*(Joint==3?.65f:1.f);
+                const FQuat GripRotation=Ref.GetRefBonePose()[BoneIndex].GetRotation()*FQuat(FVector::XAxisVector,FMath::DegreesToRadians(Angle));
+                FTransform& Local=CharacterVisual->BoneSpaceTransforms[BoneIndex];Local.SetRotation(FQuat::Slerp(Local.GetRotation(),GripRotation,Weight));Local.NormalizeRotation();
+            }
+            CharacterVisual->MarkRefreshTransformDirty();CharacterVisual->RefreshBoneTransforms();
+        }
+    }
+    CharacterVisual->RefreshBoneTransforms();
+    FTransform Grip=ClimbPose->GetSocketTransform(TEXT("HandGrip_R"),RTS_World);
+    Grip.AddToTranslation(CharacterVisual->GetBoneLocationByName(Hand[1],EBoneSpaces::WorldSpace)-ClimbPose->GetBoneLocationByName(TEXT("hand_r"),EBoneSpaces::WorldSpace));
+    WeaponMesh->SetWorldTransform(Grip);
+}
+
+FString UExpeditionMotionMatchingLibrary::BuildWallClimbContent() {
+#if WITH_EDITOR
+    auto* Mesh=LoadObject<USkeletalMesh>(nullptr,TEXT("/Game/Characters/Mannequins/Meshes/SKM_Manny_Simple"));
+    if(!Mesh||!GEditor)return TEXT("ERROR: mannequin source or editor unavailable");
+    auto* Pose=NewObject<UPoseableMeshComponent>();Pose->SetSkinnedAssetAndUpdate(Mesh);Pose->RegisterComponentWithWorld(GEditor->GetEditorWorldContext().World());
+    const FReferenceSkeleton& Ref=Mesh->GetRefSkeleton();
+    const TCHAR* Names[]={TEXT("Probe_Ground"),TEXT("Probe_Left"),TEXT("Probe_Right"),TEXT("Jump_Left"),TEXT("Jump_Right"),TEXT("Catch"),TEXT("Hang")};
+    const int32 Frames[]={18,18,18,22,22,10,45};
+    FString Report;
+    for(int32 Clip=0;Clip<7;Clip++) {
+        TArray<TArray<FTransform>> Keys;Keys.SetNum(Ref.GetNum());
+        for(int32 Frame=0;Frame<=Frames[Clip];Frame++) {
+            const float T=float(Frame)/Frames[Clip],Breath=FMath::Sin(T*2*PI);
+            const bool Ground=Clip==0,Probe=Clip==1||Clip==2,Leap=Clip==3||Clip==4,Right=Clip==2||Clip==4;
+            const float Reach=Probe?FMath::SmoothStep(0.f,1.f,T):0;
+            const float Compression=Leap?FMath::Sin(PI*FMath::Clamp(T/.3f,0.f,1.f)):(Clip==5?FMath::Sin(PI*T):0);
+            Pose->BoneSpaceTransforms=Ref.GetRefBonePose();Pose->MarkRefreshTransformDirty();Pose->RefreshBoneTransforms();
+            FTransform Root=Pose->GetBoneTransformByName(TEXT("root"),EBoneSpaces::ComponentSpace);
+            Root.AddToTranslation(FVector(0,Ground?10:25,Ground?0:8-Compression*12+(Clip==6?Breath*.5f:0)));
+            Pose->SetBoneTransformByName(TEXT("root"),Root,EBoneSpaces::ComponentSpace);
+            RotateBone(Pose,TEXT("spine_01"),FVector::RightVector,Ground?7:10+Compression*12);
+            RotateBone(Pose,TEXT("spine_03"),FVector::UpVector,(Right?1:-1)*(Probe?Reach*10:Leap?FMath::Sin(PI*T)*8:0));
+            RotateBone(Pose,TEXT("neck_01"),FVector::RightVector,Ground?-8:-14);
+            RotateBone(Pose,TEXT("head"),FVector::UpVector,Probe?(Right?1:-1)*Reach*12:0);
+            for(int32 Side=0;Side<2;Side++) {
+                const bool Lead=Side==(Right?1:0);const float X=Side==0?-24:24;
+                FVector Hand(X,72,Ground?FMath::Lerp(115.f,173.f,FMath::SmoothStep(0.f,1.f,T)):185);
+                if(Probe&&Lead)Hand+=FVector(0,5,30)*Reach;
+                if(Leap)Hand+=FVector(0,0,Lead?24:12)*FMath::Sin(PI*T);
+                FVector Foot(X,Ground?0:58,Ground?5:Side==0?65:59);
+                if(Leap)Foot+=FVector(0,-12,12)*FMath::Sin(PI*T);
+                SolveLimb(Pose,Side==0?TEXT("upperarm_l"):TEXT("upperarm_r"),Side==0?TEXT("lowerarm_l"):TEXT("lowerarm_r"),Side==0?TEXT("hand_l"):TEXT("hand_r"),Hand,FVector(Side==0?-65:65,-5,140));
+                SolveLimb(Pose,Side==0?TEXT("thigh_l"):TEXT("thigh_r"),Side==0?TEXT("calf_l"):TEXT("calf_r"),Side==0?TEXT("foot_l"):TEXT("foot_r"),Foot,FVector(Side==0?-36:36,100,90));
+                // Open fingertips while testing; curl around the grip on the catch.
+                const float Curl=Ground?T*20:Probe&&Lead?20:Leap?FMath::Lerp(15.f,65.f,FMath::SmoothStep(.65f,1.f,T)):65;
+                for(const TCHAR* Finger:{TEXT("index"),TEXT("middle"),TEXT("ring"),TEXT("pinky")})for(int32 Joint=1;Joint<=3;Joint++) {
+                    const FName Bone(*FString::Printf(TEXT("%s_0%d_%s"),Finger,Joint,Side==0?TEXT("l"):TEXT("r")));
+                    FTransform Local=Pose->GetBoneTransformByName(Bone,EBoneSpaces::ComponentSpace);
+                    // Bone-local Y is the finger flexion axis on the template rig.
+                    Local.SetRotation(Local.GetRotation()*FQuat(FVector::YAxisVector,FMath::DegreesToRadians(Curl)));
+                    Pose->SetBoneTransformByName(Bone,Local,EBoneSpaces::ComponentSpace);
+                }
+            }
+            for(int32 Bone=0;Bone<Ref.GetNum();Bone++)Keys[Bone].Add(Pose->BoneSpaceTransforms[Bone]);
+        }
+        const FString Path=FString(TEXT("/Game/Animation/WallClimb/AS_"))+Names[Clip];
+        auto* Sequence=LoadObject<UAnimSequence>(nullptr,*Path);
+        if(!Sequence){Sequence=NewObject<UAnimSequence>(CreatePackage(*Path),*FPackageName::GetShortName(Path),RF_Public|RF_Standalone);FAssetRegistryModule::AssetCreated(Sequence);}
+        Sequence->SetSkeleton(Mesh->GetSkeleton());Sequence->SetPreviewMesh(Mesh);Sequence->bLoop=Clip==6;Sequence->bEnableRootMotion=false;
+        IAnimationDataController& Controller=Sequence->GetController();Controller.OpenBracket(FText::FromString(TEXT("Author wall climb stages")),false);
+        Controller.InitializeModel();Controller.SetFrameRate(FFrameRate(30,1),false);Controller.SetNumberOfFrames(FFrameNumber(Frames[Clip]),false);
+        for(int32 Bone=0;Bone<Ref.GetNum();Bone++) {
+            TArray<FVector3f> Positions,Scales;TArray<FQuat4f> Rotations;
+            for(const FTransform& Key:Keys[Bone]){Positions.Add(FVector3f(Key.GetTranslation()));Rotations.Add(FQuat4f(Key.GetRotation()));Scales.Add(FVector3f(Key.GetScale3D()));}
+            Controller.AddBoneCurve(Ref.GetBoneName(Bone),false);Controller.SetBoneTrackKeys(Ref.GetBoneName(Bone),Positions,Rotations,Scales,false);
+        }
+        Controller.NotifyPopulated();Controller.CloseBracket(false);Sequence->PostEditChange();
+        auto* Package=Sequence->GetOutermost();Package->MarkPackageDirty();
+        const FString Filename=FPackageName::LongPackageNameToFilename(Path,FPackageName::GetAssetPackageExtension());IFileManager::Get().MakeDirectory(*FPaths::GetPath(Filename),true);
+        FSavePackageArgs Args;Args.TopLevelFlags=RF_Public|RF_Standalone;
+        if(!UPackage::SavePackage(Package,Sequence,*Filename,Args)){Pose->DestroyComponent();return TEXT("ERROR: saving wall climb clip");}
+        Report+=FString::Printf(TEXT("AS_%s: %d frames, %d full body tracks\n"),Names[Clip],Frames[Clip]+1,Ref.GetNum());
+    }
+    Pose->DestroyComponent();return Report+TEXT("WALL_CLIMB_SETUP_COMPLETE\n");
+#else
+    return TEXT("ERROR: setup requires an editor build");
+#endif
 }

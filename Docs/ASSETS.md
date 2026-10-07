@@ -67,23 +67,35 @@ python3 Scripts/restore_engine_assets.py --engine "/Users/Shared/Epic Games/UE_5
 | `/Game/Characters/Mannequins/Anims/{Pistol,Rifle}/MM_{Pistol,Rifle}_Equip` | 非叠加拔枪动作 |
 | `/Game/Characters/Mannequins/Anims/{Pistol,Rifle}/{Walk,Jog}/MF_*` | 各武器八方向步行与慢跑，共 32 个序列 |
 
-`restore_engine_assets.py` 已包含这些序列及其骨骼依赖。攀爬动画由 `ExplorerAnimation.cpp` 在运行时生成，不需要额外下载攀爬动作文件。压缩 GIF 是本工程实机动作捕获，源帧不上传。
+`restore_engine_assets.py` 已包含这些序列及其骨骼依赖。攀爬的七个全身关键帧动作由 `ExplorerAnimation.cpp` 的编辑器构建函数生成 `AnimSequence`，运行时再按墙面修正手脚接触；无需下载付费动作包。压缩 GIF 是本工程实机动作捕获，源帧不上传。
 
 `Scripts/inspect_action_upgrade_assets.py` 可在 Unreal 中检查本地动作长度、叠加类型、根运动设置与骨骼依赖。
 
 地面移动现已接入真实 Motion Matching。运行 `Scripts/SetupMotionMatching.command`，或在 Unreal 的 Python 菜单执行 `Scripts/setup_motion_matching.py`，可用上述官方模板素材生成 `/Game/Animation/MotionMatching/PSS_Explorer`、`PSD_Unarmed`、`PSD_Pistol`、`PSD_Rifle` 与 `ABP_ExplorerMotionMatching`。三个数据库共 51 个动作、2,910 个索引姿态；生成副本启用循环与根提取，原模板不修改。重启 Unreal 后角色加载新动画类。生成数据库、蓝图与动作副本全部保留本地，Git 提交 C++ 与可重现脚本。详见 [Motion Matching 接入说明](MOTION_MATCHING.md)。
 
-[Epic Game Animation Sample](https://www.fab.com/listings/880e319a-a59e-4ed2-b268-b32dac7fa016) 是后续扩充起停、急转与正式攀越动作的可选免费来源，本次尚未下载迁移。当前 Motion Matching 接入无需该示例或 Fab 登录。攀爬继续使用已有程序化接触系统，根运动 Motion Warping 尚未启用。
+[Epic Game Animation Sample](https://www.fab.com/listings/880e319a-a59e-4ed2-b268-b32dac7fa016) 是后续扩充起停、急转与正式攀越动作的可选免费来源，本次尚未下载迁移。当前 Motion Matching 接入无需该示例或 Fab 登录。攀爬现有伸手试探、空格起跳抓取和抓稳三阶段关键帧序列，接触由 IK 修正，根运动 Motion Warping 尚未启用。
+
+## 着装人物 Diesel 与三阶段攀爬
+
+人物来源为 [Diesel / 3D Character Rigged，THEUNSEENVULGA](https://theunseenvulga.itch.io/3d-charater-riggeddiesel)，作者声明 CC0，免费用于个人和商业项目。下载 `Diesel.glb`（点击 Download Now，再选择 No thanks, just take me to the downloads）。原始文件为 10,515,216 字节，SHA-256 为 `9fbb438e8221f96e1f25da90c731f474bf031970a75ba132c87e1aeaf784745e`。
+
+编译后关闭 Unreal，运行：
+
+```sh
+Scripts/SetupExplorer.command /absolute/path/to/Diesel.glb
+```
+
+脚本合并身体、服装、靴子、头发和面部网格，保留嵌入贴图及蒙皮；生成官方 IK Retargeter，将已有 Motion Matching、武器和攀爬动作重定向到人物。Mixamo 的根节点与骨盆为同一骨骼，因此禁用根运动重映射，避免覆盖骨盆高度。随后生成 `/Game/Animation/WallClimb/` 下的七个全身动作。`ArtSource/Characters/` 和所有导入/生成的 Content 资源只保留本地，代码与来源链接提交 Git。具体阶段、资源路径及限制见 [WALL_CLIMB.md](WALL_CLIMB.md)。
 
 ## 恢复步骤
 
 1. 安装 UE 5.8 与对应 C++ 工具链，恢复上面的 Unreal 官方模板资源。
-2. 编译 `LostExpeditionEditor`；Mac 可运行 `Scripts/Build.command`。随后运行 `Scripts/SetupMotionMatching.command` 建立动画内容并重启 Unreal。首次打开可能提示默认地图尚不存在，完成下列生成步骤后即可使用。
+2. 编译 `LostExpeditionEditor`；Mac 可运行 `Scripts/Build.command`。随后运行 `Scripts/SetupMotionMatching.command` 和上述 `Scripts/SetupExplorer.command` 建立移动动画、人物和三阶段攀爬内容，再重启 Unreal。首次打开可能提示默认地图尚不存在，完成下列生成步骤后即可使用。
 3. 下载并导入“植被和路面素材”中的四项必需资源，确保目标路径与名称完全一致。
 4. 在系统终端运行 `python3 Scripts/download_coastal_assets.py`，下载海岸模型和贴图。
 5. 在 Unreal 的 **Tools → Execute Python Script** 中执行 `Scripts/import_coastal_assets.py`。等待导入、材质和 LOD 处理完成。
 6. 在系统终端运行 `python3 Scripts/prepare_island_assets.py`，生成椰子树并下载沙滩材质。
 7. 在 Unreal 的同一菜单执行 `Scripts/setup_scene.py`。此脚本会生成海岛材质和 `Content/Maps/CliffSanctuary.umap`，也会覆盖该生成地图上的手动修改。运行前请保存自己的修改。
-8. 打开地图并 Play；Mac 可用 `Scripts/PlayTower.command` 直达塔下。运行 `Scripts/SmokeTest.command` 检查素材引用、连续攀爬及其他玩法。
+8. 打开地图并 Play；Mac 可用 `Scripts/PlayTower.command` 直达塔下。运行 `Scripts/SmokeTest.command` 检查素材引用、三阶段攀爬及其他玩法。
 
 `ArtSource/CoastalRemake/weathered_block.obj`、`cliff_core.obj` 与 `.mtl` 是小体积的自制几何源文件，保留在 Git 中。当前岛体直接由 C++ 程序网格生成。最新运行结果见 `Docs/runtime-test.txt`；新克隆完成素材恢复后，应重新运行检查确认导入结果。

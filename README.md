@@ -26,13 +26,14 @@ Actual Unreal Engine captures from the current island level.
 
 The [action system upgrade plan](Docs/ACTION_SYSTEM_PLAN.md) records the implementation stages and remaining animation dependencies.
 
-Climbing includes a grab transition, alternating hand and foot reaches, weight shifts during vertical and sideways movement, a crouched rooftop pull-up, and a reverse transition for descending from the roof. Holding a direction chains adjacent holds without a per-hold pause. Brief commands and reversals are buffered until the next contact; releasing finishes the current reach. Wall traces select reachable foot contacts, and body correction keeps supporting limbs within reach.
+The visible hero is **Diesel**, a free CC0 clothed character with a face, jacket, trousers and boots. The existing ground Motion Matching and firearm layers are retargeted to his rig with Unreal's IK Retargeter.
 
-![Animated climbing: upward reach, sideways traverse, rooftop mantle, and descent](Docs/Images/climbing-animation.gif)
+Wall climbing now has three distinct animated stages: **reach and probe → Space to jump and grab → secure catch**. WASD chooses the next hold while the body remains supported; Space commits the leap. The catch compresses the torso, braces the knees and settles into hanging. Seven project-authored full-body sequences provide ground anticipation, mirrored wall reaches/leaps, catch recovery and hanging; contact IK adapts them to the actual wall. See the [wall climbing and character guide](Docs/WALL_CLIMB.md) for controls, asset provenance and restoration.
+![Three-stage wall climbing with the clothed Diesel character](Docs/Images/climbing-animation.gif)
 
 Pistol and rifle fire use the official UE mannequin animation sequences, blended into the upper body over the existing locomotion pose. The weapon follows the animated hand; successive rifle shots retrigger recoil, and recovery blends back into movement. Aim elevation follows the camera. Official reload and equip clips share the upper-body layer; Pose Search databases supply the locomotion pose for unarmed, pistol and rifle movement. Consecutive shots crossfade recoil instead of resetting the arm pose.
 
-Full-body action transitions retain the outgoing pose and velocity with critically damped offsets evaluated before contact IK. A single visible mesh and permanent weapon socket carry movement, traversal, and combat. Ground acceleration, braking, speed changes, and camera-facing rotation are smoothed.
+Full-body action transitions retain the outgoing pose and velocity with critically damped offsets evaluated before contact IK. The finished action pose is retargeted to the clothed character; contact correction keeps the weapon and wall holds aligned with his proportions. Ground acceleration, braking, speed changes, and camera-facing rotation are smoothed.
 
 ![Moving fire, reload, and official weapon actions in the game](Docs/Images/firing-animation.gif)
 
@@ -53,6 +54,8 @@ The macOS scripts default to `/Users/Shared/Epic Games/UE_5.8`. Update that path
 | [`Scripts/PlayTower.command`](Scripts/PlayTower.command) | Start beside the tower to try wall climbing; keeps existing saves |
 | [`Scripts/Build.command`](Scripts/Build.command) | Build the editor module |
 | [`Scripts/SetupMotionMatching.command`](Scripts/SetupMotionMatching.command) | Generate the Pose Search schema, databases and compiled AnimBlueprint |
+| [`Scripts/SetupExplorer.command`](Scripts/SetupExplorer.command) | Import the clothed character, build the IK retargeter and author wall-climbing sequences |
+| [`Scripts/WallClimbReview.command`](Scripts/WallClimbReview.command) | Capture the reach, Space leap and secure catch stages |
 | [`Scripts/MotionMatchingReview.command`](Scripts/MotionMatchingReview.command) | Capture actual matched movement and combat |
 | [`Scripts/SmokeTest.command`](Scripts/SmokeTest.command) | Run checks in the actual game world |
 | [`Scripts/AnimationReview.command`](Scripts/AnimationReview.command) | Capture repeatable climbing and firing animation frames |
@@ -73,9 +76,10 @@ The map's internal asset path remains `/Game/Maps/CliffSanctuary`.
 | --- | --- |
 | Move / look | WASD / mouse |
 | Sprint / jump | Left Shift / Space |
-| Grab a handhold / interact | E |
-| Climb up / down | W / S |
-| Traverse left / right | A / D |
+| Probe the first handhold / interact | E |
+| Probe a higher / lower hold | W / S |
+| Probe a hold on the left / right | A / D |
+| Jump to the selected hold | Space |
 | Mantle from the final handhold | Space |
 | Descend from the rooftop | Approach the west opening, face outward, and press E |
 | Let go | Left Ctrl |
@@ -84,7 +88,7 @@ The map's internal asset path remains `/Game/Maps/CliffSanctuary`.
 | Medkit / grenade | Q / G |
 | Adventure journal / reset this island's save | Tab / F5 |
 
-Climbing includes facing checks, adjacent handhold selection, collision sweeps, horizontal transfers, descent, rooftop mantling, and grabbing the edge from above. Hands and feet move in separate phases, with a supporting hand retained during the first reach. Intermediate holds cannot be mantled; horizontal gaps require **A/D**.
+Climbing includes facing checks, adjacent handhold selection, collision sweeps, horizontal transfers, descent, rooftop mantling, and grabbing the edge from above. The probe retains a supporting hand; a collision-swept leap ends in a separate secure catch. Intermediate holds cannot be mantled; horizontal gaps require **A/D**.
 
 ## Combat, items, and saves
 
@@ -100,7 +104,7 @@ After restoring the required assets, run this in your system terminal to generat
 python3 Scripts/prepare_island_assets.py
 ```
 
-After compiling and restoring template assets, run `Scripts/SetupMotionMatching.command` and restart Unreal to load the generated animation class.
+After compiling and restoring template assets, run `Scripts/SetupMotionMatching.command` and `Scripts/SetupExplorer.command /absolute/path/to/Diesel.glb`, then restart Unreal to load the generated animation class.
 
 Then execute `Scripts/setup_scene.py` through Unreal's **Tools → Execute Python Script** menu. This regenerates the map and overwrites manual changes to that generated level; save your own edits elsewhere first.
 
@@ -113,15 +117,16 @@ Then execute `Scripts/setup_scene.py` through Unreal's **Tools → Execute Pytho
 | [`ExplorerAnimation.cpp`](Source/LostExpedition/ExplorerAnimation.cpp) | Official firearm animation blending, staged climbing limbs, and pull-up poses |
 | [`ExplorerMotionMatching.cpp`](Source/LostExpedition/ExplorerMotionMatching.cpp) | Pose Search query trajectory, weapon database changes and evaluated selection diagnostics |
 | [`ExpeditionMotionMatchingSetup.cpp`](Source/LostExpedition/ExpeditionMotionMatchingSetup.cpp) | Rebuild indexed databases and the compiled Motion Matching AnimGraph |
-| [`ExplorerPoseComponent.cpp`](Source/LostExpedition/ExplorerPoseComponent.cpp) | Update the visible action pose after locomotion bones are evaluated |
+| [`ExplorerPoseComponent.cpp`](Source/LostExpedition/ExplorerPoseComponent.cpp) | Preserve pose and velocity across action transitions |
+| [`ExplorerVisualComponent.cpp`](Source/LostExpedition/ExplorerVisualComponent.cpp) | Runtime IK retargeting to the clothed character |
 | [`create_island_materials.py`](Scripts/create_island_materials.py) | Blended sand and rock, shallow water, shoreline foam, and vegetation materials |
 
-The current suite passes **106 checks**. The recorded runtime results are in the [test report](Docs/runtime-test.txt). Checks cover the continuous beach-to-tower route, every handhold transfer, supporting-hand and wall-foot contact error, 30/60/120 Hz chaining, buffered taps and reversals, release continuity, blocked reaches, animated rooftop ascent and descent, firearm animation triggers and recoil continuity, moving aim, reload/equip actions, weapon attachment, damage, items, and saves. These results apply to the configured local project; run the checks again after restoring assets in a fresh clone.
+The current suite passes **112 checks with zero failures**. The [runtime report](Docs/runtime-test.txt) covers the beach-to-tower route, all 23 handholds, the three climbing stages, explicit Space input and one-command buffering, ground-probe cancellation, moving obstacles, 30/60/120 Hz jump paths, the clothed character's pelvis and wall contacts, rooftop ascent/descent, ground Motion Matching, weapon layers, items and saves. These results apply to the configured local project; rerun them after restoring assets in a fresh clone.
 
 For repeatable screenshots, run `Scripts/editor_view.py` at editor startup with `-AdventureCapture -AdventureCaptureExit`. It writes the full-resolution island views to `Docs/`. Launching the game with `-WatchtowerVisualReview` captures a real wall-gripping state to `Docs/tower-gameplay.png` and exits. Only the compressed copies in `Docs/Images/` are included in Git.
 
-`Scripts/AnimationReview.command` captures fixed-timestep animation frames into `Docs/AnimationFrames/`. Run `python3 Scripts/assemble_animation_previews.py` with Pillow installed to assemble the small GIF previews. The source frames remain local.
+`Scripts/WallClimbReview.command` captures the three stages into `Docs/WallClimbFrames/`; assemble the README preview with `python3 Scripts/assemble_animation_previews.py --wall-climb-only` using Pillow. `Scripts/AnimationReview.command` captures weapon and complete traversal reviews into `Docs/AnimationFrames/`. All source frames remain local.
 
 ## Current scope
 
-This is a single-player adventure prototype using the UE mannequin and procedural climbing animation. Climbing still uses generated limb poses rather than authored motion capture. Motion Matching/Pose Search is active using official template locomotion loops. Dedicated start/stop and pivot clips still need expanded authored coverage. Root-motion Motion Warping is not active, and Game Animation Sample has not been imported. Rope swinging, audio, and cinematic sequences are not implemented. External asset sources and restoration instructions are listed in [Docs/ASSETS.md](Docs/ASSETS.md).
+This is a single-player adventure prototype with the clothed Diesel character. Wall actions use reproducible project-authored keyframes plus contact IK; imported climbing motion capture remains future work. Ground Motion Matching/Pose Search is active using official template locomotion loops. Dedicated start/stop and pivot clips still need expanded coverage. Root-motion Motion Warping is not active, and Game Animation Sample has not been imported. Rope swinging, audio, and cinematic sequences are not implemented. External asset sources and restoration instructions are listed in [Docs/ASSETS.md](Docs/ASSETS.md).

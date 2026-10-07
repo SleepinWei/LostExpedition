@@ -23,7 +23,7 @@ public:
 };
 
 UENUM(BlueprintType)
-enum class ETraversalState : uint8 { Walking, Hanging, Mantling, Clinging, Reaching };
+enum class ETraversalState : uint8 { Walking, Hanging, Mantling, Clinging, Reaching, Probing, GripJump, Catching };
 
 UCLASS()
 class LOSTEXPEDITION_API AExplorerCharacter : public ACharacter {
@@ -42,17 +42,19 @@ public:
     bool TryLedge(const FVector& At, const FVector& Direction, FVector& Edge, FVector& Normal) const;
     bool BeginWallGrip(); bool MoveWallGrip(float Horizontal,float Vertical); void UpdateClimbPose();
     static constexpr float GripTransferDuration=.76f, RoofEntryDuration=1.10f, MantleDuration=1.10f;
+    static constexpr float ProbeMinimumTime=.18f, CatchDuration=.32f;
+    float ProbeTime=0, CatchTime=0;
+    bool bGroundProbe=false, bProbeJumpRequested=false, bBufferedGripJump=false;
+    bool ProbeGrip(int32 Candidate);
+    void UpdateCharacterVisual();
+    UPROPERTY(VisibleAnywhere) TObjectPtr<class UExplorerVisualComponent> CharacterVisual;
+    // Ground probe, left/right wall probe, left/right leap, secure catch, hanging idle.
+    UPROPERTY() TArray<TObjectPtr<class UAnimSequence>> WallClimbAnimations;
     int32 CurrentGrip=-1, TargetGrip=-1;
     float ReachTime=0, GripCooldown=0;
     float ReachDuration=GripTransferDuration;
-    FVector ReachStartVelocity=FVector::ZeroVector, TraversalVelocity=FVector::ZeroVector;
-    FVector ReachEndVelocity=FVector::ZeroVector;
-    float ReachCurveStartTime=0;
-    int32 ReachCurveNextGrip=-2;
+    FVector TraversalVelocity=FVector::ZeroVector;
     FVector2D BufferedTraversalInput=FVector2D::ZeroVector;
-    float TraversalBufferRemaining=0;
-    int32 QueuedGrip=-1;
-    bool bBufferedMantle=false;
     bool bEnteringFromRoof=false;
     FVector ReachStart;
     bool bLeadRight=true;
@@ -98,7 +100,7 @@ public:
     void RunSmokeTest();
 private:
     float ForwardInput=0, RightInput=0;
-    FVector2D PreviousTraversalInput=FVector2D::ZeroVector;
+    float LastVisualAnimationClock=-1;
     int32 FindGrip(int32 From,const FVector2D& Input) const;
     bool StartGripTransfer(int32 Candidate);
     void UpdateTraversal(float DeltaTime);

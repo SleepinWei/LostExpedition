@@ -1,5 +1,6 @@
 #include "ExpeditionGameMode.h"
 #include "ExplorerCharacter.h"
+#include "ExplorerPoseComponent.h"
 #include "ExpeditionActors.h"
 #include "ExpeditionTower.h"
 #include "ExpeditionWorld.h"
@@ -37,18 +38,21 @@ void AExpeditionGameMode::StartAnimationReview() {
     CaptureAnimationFrame();
 }
 void AExpeditionGameMode::CaptureAnimationFrame() {
+    if(FParse::Param(FCommandLine::Get(),TEXT("WallClimbVisualReview"))){CaptureWallClimbFrame();return;}
     if(FParse::Param(FCommandLine::Get(),TEXT("MotionMatchingVisualReview"))){CaptureMotionMatchingFrame();return;}
     if(TActorIterator<AExplorerCharacter> It(GetWorld());It) {
         auto* P=*It;const int32 Frame=AnimationReviewFrame;
         auto Grip=[&](int32 Index){
             P->Drop();P->Traversal=ETraversalState::Walking;P->SetActorLocation(ExpeditionTower::HangPosition(Index)+ExpeditionTower::WallNormal*40);
-            P->SetActorRotation(FRotator::ZeroRotator);P->LedgeCooldown=0;P->BeginHang();
+            P->SetActorRotation(FRotator::ZeroRotator);P->LedgeCooldown=0;P->CurrentGrip=P->TargetGrip=Index;P->Ledge=ExpeditionTower::Grip(Index);P->WallNormal=ExpeditionTower::WallNormal;P->bGroundProbe=false;P->Traversal=ETraversalState::Clinging;P->SetActorLocation(ExpeditionTower::HangPosition(Index));P->GetCharacterMovement()->SetMovementMode(MOVE_Flying);CastChecked<UExplorerPoseComponent>(P->ClimbPose)->ResetTransition();
         };
         if(Frame==0)Grip(1);
         if(Frame==8){P->GripCooldown=0;P->Forward(1);}
+        if(Frame==18)P->JumpOrClimb();
         if(Frame==36)P->Forward(0);
         if(Frame==40)Grip(8);
         if(Frame==48){P->GripCooldown=0;P->Right(1);}
+        if(Frame==58)P->JumpOrClimb();
         if(Frame==72)P->Right(0);
         if(Frame==80)Grip(ExpeditionTower::Steps-1);
         if(Frame==88)P->BeginMantle();
@@ -58,6 +62,7 @@ void AExpeditionGameMode::CaptureAnimationFrame() {
             P->SetActorRotation(FRotator(0,180,0));P->LedgeCooldown=0;P->BeginHang();
         }
         if(Frame==150){P->GripCooldown=0;P->MoveWallGrip(0,-1);}
+        if(Frame==151)P->JumpOrClimb();
         if(Frame==160||Frame==200||Frame==240||Frame==280) {
             P->Drop();P->Traversal=ETraversalState::Walking;P->GetCharacterMovement()->SetMovementMode(MOVE_Walking);
             P->SetActorLocation(ExpeditionTower::Start()+FVector(-300,0,0));P->SetActorRotation(FRotator::ZeroRotator);
@@ -74,7 +79,7 @@ void AExpeditionGameMode::CaptureAnimationFrame() {
         if(Frame>=160)P->GetCharacterMovement()->TickComponent(1.f/24,LEVELTICK_All,nullptr);
         P->GetMesh()->TickAnimation(1.f/24,false);P->GetMesh()->RefreshBoneTransforms();P->UpdateClimbPose();
         const FVector Body=P->GetActorLocation();
-        const FVector Center=Frame<160&&P->ClimbPose->IsVisible()?P->ClimbPose->GetBoneLocationByName(TEXT("pelvis"),EBoneSpaces::WorldSpace)+FVector(0,0,20):Body+FVector(0,0,10);
+        const FVector Center=Frame<160?P->ClimbPose->GetBoneLocationByName(TEXT("pelvis"),EBoneSpaces::WorldSpace)+FVector(0,0,20):Body+FVector(0,0,10);
         const FVector Offset=Frame<160?FVector(-340,-260,90):FVector(340,-260,80);
         AnimationReviewCamera->SetActorLocation(Center+Offset);
         AnimationReviewCamera->SetActorRotation((-Offset).Rotation());

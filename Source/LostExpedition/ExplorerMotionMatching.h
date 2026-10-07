@@ -43,4 +43,6 @@ public:
     // Creates only the project's generated animation content; template assets remain intact.
     UFUNCTION(BlueprintCallable,Category="Expedition|Setup",meta=(DevelopmentOnly))
     static FString BuildMotionMatchingContent();
+    UFUNCTION(BlueprintCallable,Category="Expedition|Setup",meta=(DevelopmentOnly))
+    static FString BuildWallClimbContent();
 };

@@ -54,3 +54,6 @@ __pycache__/
 !/Docs/Images/firing-animation.gif
 
 !/Docs/Images/motion-matching.gif
+
+/ArtSource/Characters/
+/ArtSource/Animations/

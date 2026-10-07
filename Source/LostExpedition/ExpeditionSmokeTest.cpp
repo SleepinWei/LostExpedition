@@ -1,5 +1,6 @@
 #include "ExplorerCharacter.h"
 #include "ExplorerMotionMatching.h"
+#include "ExplorerVisualComponent.h"
 #include "PoseSearch/PoseSearchDatabase.h"
 #include "GameFramework/PlayerController.h"
 #if WITH_EDITOR
@@ -116,76 +117,66 @@ void AExplorerCharacter::RunSmokeTest() {
     bool TowerApproach=Trail&&WalkTo(820,-1100)&&WalkTo(820,640)&&WalkTo(967,640);
     Check(TowerApproach,TEXT("Walk from highland to the first tower handhold"));
     SetActorRotation(FRotator(0,180,0));LedgeCooldown=0;Check(!BeginWallGrip(),TEXT("Cannot grab a handhold while facing away"));
-    SetActorRotation(FRotator::ZeroRotator);Check(BeginHang()&&Traversal==ETraversalState::Clinging,TEXT("Grab the first stone handle from the ground"));
+    SetActorRotation(FRotator::ZeroRotator);const FVector GroundStart=GetActorLocation();
+    Check(BeginHang()&&Traversal==ETraversalState::Probing,TEXT("Approaching the first handle starts the exploratory reach stage"));
+    Advance(.6f);
+    Check(GetActorLocation().Equals(GroundStart,.01f)&&Traversal==ETraversalState::Probing,TEXT("Ground probing never teleports the capsule or automatically jumps"));
+    Check(CharacterVisual->GetCharacterMesh()&&CharacterVisual->IsVisible()&&!ClimbPose->IsVisible()&&!GetMesh()->IsVisible()&&CharacterVisual->IsRetargetReady(),TEXT("The clothed Diesel character is visible and uses the runtime IK retargeter"));
+    Check(CharacterVisual->GetBoneLocationByName(TEXT("mixamorig_Hips"),EBoneSpaces::WorldSpace).Z>GetActorLocation().Z-20,TEXT("Retargeting preserves pelvis height instead of replacing it with the ground root"));
+    bool ClipsReady=WallClimbAnimations.Num()==7;
+    for(auto Clip:WallClimbAnimations)ClipsReady=ClipsReady&&Clip&&Clip->GetPlayLength()>.2f;
+    Check(ClipsReady,TEXT("Seven full body sequences cover ground reach, mirrored probe/leap, catch and hang"));
+    Check(!BeginMantle(),TEXT("The exploratory reach cannot top out"));
+    JumpOrClimb();Check(Traversal==ETraversalState::GripJump,TEXT("Space explicitly launches the jump-to-grab stage"));
+    Advance(ReachDuration+.03f);Check(Traversal==ETraversalState::Catching,TEXT("Landing on a handhold enters the secure catch animation"));
+    Advance(CatchDuration+.05f);Check(Traversal==ETraversalState::Clinging&&CurrentGrip==0,TEXT("The catch settles into a supported hang on the first handle"));
     Check(!BeginMantle(),TEXT("Intermediate wall handles cannot be used as walkable platforms"));
-    Advance(.28f);Check(ClimbPose->IsVisible()&&ClimbPose->GetBoneLocationByName(TEXT("hand_l"),EBoneSpaces::WorldSpace).Z>GetActorLocation().Z+65,TEXT("Procedural wall pose lifts the hands to the stone grip"));
-    GripCooldown=0;
-    auto* Obstacle=GetWorld()->SpawnActor<AActor>();auto* Box=NewObject<UBoxComponent>(Obstacle);Obstacle->SetRootComponent(Box);Box->SetBoxExtent(FVector(45,55,45));Box->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);Box->SetCollisionResponseToAllChannels(ECR_Block);Box->RegisterComponent();Obstacle->SetActorLocation(ExpeditionTower::HangPosition(1));
-    Check(!MoveWallGrip(0,1),TEXT("Obstructed wall reach is rejected"));Obstacle->Destroy();
     auto ResetGrip=[&](int32 Index){
         Drop();Traversal=ETraversalState::Walking;GetCharacterMovement()->SetMovementMode(MOVE_Walking);
-        SetActorLocation(ExpeditionTower::HangPosition(Index)+FVector(-40,0,0));SetActorRotation(FRotator::ZeroRotator);LedgeCooldown=0;BeginWallGrip();Advance(.4f);GripCooldown=0;
+        SetActorLocation(ExpeditionTower::HangPosition(Index)+FVector(-40,0,0));SetActorRotation(FRotator::ZeroRotator);LedgeCooldown=0;BeginWallGrip();JumpOrClimb();Advance(1.4f);GripCooldown=0;
     };
+    auto* Obstacle=GetWorld()->SpawnActor<AActor>();auto* Box=NewObject<UBoxComponent>(Obstacle);Obstacle->SetRootComponent(Box);Box->SetBoxExtent(FVector(45,55,45));Box->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);Box->SetCollisionResponseToAllChannels(ECR_Block);Box->RegisterComponent();Obstacle->SetActorLocation(ExpeditionTower::HangPosition(1));
+    Check(!MoveWallGrip(0,1),TEXT("An obstructed handhold cannot be selected for a reach"));Obstacle->Destroy();
+    ResetGrip(0);const FVector SupportedStart=GetActorLocation();Forward(1);Advance(.7f);
+    Check(Traversal==ETraversalState::Probing&&CurrentGrip==0&&TargetGrip==1&&GetActorLocation().Equals(SupportedStart,.01f),TEXT("Held direction probes the next grip while the body remains supported"));
+    Forward(0);Advance(.2f);Check(Traversal==ETraversalState::Probing,TEXT("The selected handhold waits for Space after direction release"));
+    Journal();Advance(.03f);Check(Traversal==ETraversalState::Clinging&&!bProbeJumpRequested,TEXT("Opening the journal cancels a probe without launching a jump"));Journal();
     FVector RatePositions[3];float LargestContactError=0,LargestFootError=0;
     const int32 Rates[3]={30,60,120};
     for(int R=0;R<3;R++) {
-        ResetGrip(0);Forward(1);bool NoIdle=true;
-        for(int F=0;F<Rates[R]*2.4f;F++) {
-            Tick(1.f/Rates[R]);UpdateClimbPose();
-            if(F>0&&Traversal!=ETraversalState::Reaching)NoIdle=false;
-            if(Traversal==ETraversalState::Reaching&&ReachTime/ReachDuration<.18f) {
-                const int Support=bLeadRight?0:1;
-                const float Error=FVector::Dist(ClimbPose->GetBoneLocationByName(Support==0?TEXT("foot_l"):TEXT("foot_r"),EBoneSpaces::WorldSpace),AnimatedFeet[Support]);
-                LargestFootError=FMath::Max(LargestFootError,Error);
-            }
-            if(Traversal==ETraversalState::Reaching&&ReachTime/ReachDuration<.35f) {
-                const int Support=bLeadRight?0:1;
-                LargestContactError=FMath::Max(LargestContactError,float(FVector::Dist(ClimbPose->GetBoneLocationByName(Support==0?TEXT("hand_l"):TEXT("hand_r"),EBoneSpaces::WorldSpace),AnimatedHands[Support])));
-            }
-        }
+        ResetGrip(0);MoveWallGrip(0,1);Advance(.3f);JumpOrClimb();
+        for(int F=0;F<Rates[R]*.4f;F++){Tick(1.f/Rates[R]);UpdateClimbPose();}
         RatePositions[R]=GetActorLocation();
-        Check(NoIdle&&CurrentGrip==3&&TargetGrip==4,FString::Printf(TEXT("Held climb chains four transfers without an idle frame at %d Hz"),Rates[R]));
-        Forward(0);const int32 StopGrip=TargetGrip;Advance(.9f);
-        Check(Traversal==ETraversalState::Clinging&&CurrentGrip==StopGrip,TEXT("Release finishes the current reach and cancels further held movement"));
+        Check(Traversal==ETraversalState::GripJump,FString::Printf(TEXT("Space leap evaluates between grips at %d Hz"),Rates[R]));
+        Advance(.9f);Check(Traversal==ETraversalState::Clinging&&CurrentGrip==1,TEXT("A jump command catches exactly one selected grip"));
+        for(int Index=0;Index<2;Index++) {
+            const FName Hand=Index==0?TEXT("mixamorig_LeftHand"):TEXT("mixamorig_RightHand"),Foot=Index==0?TEXT("mixamorig_LeftFoot"):TEXT("mixamorig_RightFoot");
+            LargestContactError=FMath::Max(LargestContactError,float(FVector::Dist(CharacterVisual->GetBoneLocationByName(Hand,EBoneSpaces::WorldSpace),AnimatedHands[Index])));
+            LargestFootError=FMath::Max(LargestFootError,float(FVector::Dist(CharacterVisual->GetBoneLocationByName(Foot,EBoneSpaces::WorldSpace),AnimatedFeet[Index])));
+        }
     }
     UE_LOG(LogTemp,Display,TEXT("ACTION_CONTACT maxSupportError=%.3f maxFootError=%.3f rateDelta=%.3f"),LargestContactError,LargestFootError,FVector::Dist(RatePositions[0],RatePositions[2]));
-    Check(FVector::Dist(RatePositions[0],RatePositions[2])<4,TEXT("30 and 120 Hz traversal paths agree within four centimetres"));
-    Check(LargestFootError<8,TEXT("Solved planted foot remains within eight centimetres of its wall contact"));
-    Check(LargestContactError<8,TEXT("Solved support hand stays within eight centimetres of its planted contact"));
-    ResetGrip(0);MoveWallGrip(0,1);Forward(1);Tick(.05f);Forward(0);Advance(ReachDuration+.05f);
-    Check(CurrentGrip==1&&TargetGrip==2&&Traversal==ETraversalState::Reaching,TEXT("A brief direction tap during a reach buffers one next transfer"));
-    Advance(.9f);Check(CurrentGrip==2&&Traversal==ETraversalState::Clinging,TEXT("Buffered tap executes once and does not repeat"));
-    ResetGrip(0);MoveWallGrip(0,1);Forward(-1);Advance(ReachDuration+.04f);
-    Check(CurrentGrip==1&&TargetGrip==0&&Traversal==ETraversalState::Reaching,TEXT("Reverse input queues a descent at the next contact"));Forward(0);Advance(.9f);
-    Check(CurrentGrip==0&&Traversal==ETraversalState::Clinging,TEXT("Queued reversal returns to the previous handhold"));
-    ResetGrip(0);MoveWallGrip(0,1);Forward(1);Tick(.05f);Journal();Advance(.9f);
-    Check(CurrentGrip==1&&Traversal==ETraversalState::Clinging&&QueuedGrip<0,TEXT("Journal cancels buffered and held traversal commands"));Journal();
-    ResetGrip(0);Forward(1);Advance(.25f);Forward(0);
-    const FVector ReleasePosition=GetActorLocation(),ReleaseVelocity=TraversalVelocity;Tick(.001f);UpdateClimbPose();
-    Check(FVector::Dist(GetActorLocation(),ReleasePosition+ReleaseVelocity*.001f)<.1f,TEXT("Releasing mid-reach preserves the body position and velocity when replanning"));Advance(.9f);
-    ResetGrip(ExpeditionTower::Steps-2);MoveWallGrip(0,1);JumpOrClimb();Advance(ReachDuration+.08f);
-    Check(Traversal==ETraversalState::Mantling&&MantleTime>0&&MantleTime<.12f,TEXT("Buffered Space enters the rooftop mantle at contact and carries only the remaining timestep"));
-    ResetGrip(0);
-    bool Climbed=Traversal==ETraversalState::Clinging;
+    Check(FVector::Dist(RatePositions[0],RatePositions[2])<1,TEXT("30 and 120 Hz jump paths agree within one centimetre"));
+    Check(LargestFootError<8,TEXT("The clothed character's planted feet match the wall within eight centimetres"));
+    Check(LargestContactError<8,TEXT("The clothed character's hands match the stone holds within eight centimetres"));
+    ResetGrip(0);MoveWallGrip(0,1);JumpOrClimb();Check(Traversal==ETraversalState::Probing,TEXT("An early Space press preserves a minimum visible anticipation"));
+    Advance(.22f);Check(Traversal==ETraversalState::GripJump,TEXT("The buffered Space press launches after anticipation"));
+    MoveWallGrip(0,1);JumpOrClimb();Advance(2.5f);
+    Check(CurrentGrip==2&&Traversal==ETraversalState::Clinging,TEXT("One Space press during a leap buffers exactly one subsequent grip jump"));
+    ResetGrip(0);MoveWallGrip(0,1);Advance(.3f);JumpOrClimb();Advance(.2f);
+    Obstacle=GetWorld()->SpawnActor<AActor>();Box=NewObject<UBoxComponent>(Obstacle);Obstacle->SetRootComponent(Box);Box->SetBoxExtent(FVector(45,55,45));Box->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);Box->SetCollisionResponseToAllChannels(ECR_Block);Box->RegisterComponent();Obstacle->SetActorLocation(ExpeditionTower::HangPosition(1));
+    Advance(.8f);Check(Traversal==ETraversalState::Walking&&GetCharacterMovement()->IsFalling(),TEXT("A new obstacle during flight safely interrupts the grab and restores gravity"));Obstacle->Destroy();
+    ResetGrip(0);bool Climbed=Traversal==ETraversalState::Clinging;
     for(int I=1;I<ExpeditionTower::Steps&&Climbed;I++) {
         FVector Delta=ExpeditionTower::Grip(I)-ExpeditionTower::Grip(I-1);GripCooldown=0;
         if(FMath::Abs(Delta.Z)<1)Check(!MoveWallGrip(0,1),TEXT("Horizontal gap requires a deliberate sideways reach"));
-        bool Reaching=MoveWallGrip(FMath::Abs(Delta.Z)<1?FMath::Sign(Delta.Y):0,Delta.Z>0?1:0);
-        if(Reaching&&I==1) {
-            Advance(.22f);
-            const int Lead=bLeadRight?1:0,Support=1-Lead;
-            const FVector Hand=ClimbPose->GetBoneLocationByName(Lead==0?TEXT("hand_l"):TEXT("hand_r"),EBoneSpaces::WorldSpace);
-            const FVector Other=ClimbPose->GetBoneLocationByName(Support==0?TEXT("hand_l"):TEXT("hand_r"),EBoneSpaces::WorldSpace);
-            UE_LOG(LogTemp,Display,TEXT("CLIMB_PHASE lead=%d time=%.3f body=%s hand=%s other=%s targets=%s/%s"),Lead,ReachTime,*GetActorLocation().ToString(),*Hand.ToString(),*Other.ToString(),*AnimatedHands[Lead].ToString(),*AnimatedHands[Support].ToString());
-            Check(Hand.Z>Other.Z+20,TEXT("Climb animation moves one hand ahead of the supporting hand"));
-            Check(ClimbPose->IsVisible()&&!GetMesh()->IsVisible()&&!WeaponMesh->IsVisible(),TEXT("Reaching shows the animated climbing mesh and stows the weapon"));
-            Advance(GripTransferDuration-.22f+.03f);
-        } else if(Reaching)Advance(GripTransferDuration+.03f);
-        Climbed=Reaching&&CurrentGrip==I&&Traversal==ETraversalState::Clinging&&GetActorLocation().Equals(ExpeditionTower::HangPosition(I),2);
-        Check(Climbed,FString::Printf(TEXT("Collision-safe handhold transfer %02d / %02d"),I,ExpeditionTower::Steps-1));
+        bool Selected=MoveWallGrip(FMath::Abs(Delta.Z)<1?FMath::Sign(Delta.Y):0,Delta.Z>0?1:0);
+        if(Selected){Advance(.3f);JumpOrClimb();Advance(ReachDuration+CatchDuration+.05f);}
+        Climbed=Selected&&CurrentGrip==I&&Traversal==ETraversalState::Clinging&&GetActorLocation().Equals(ExpeditionTower::HangPosition(I),2);
+        Check(Climbed,FString::Printf(TEXT("Probe / Space leap / secure catch %02d / %02d"),I,ExpeditionTower::Steps-1));
     }
     Check(Climbed&&BeginMantle(),TEXT("Start the final mantle from the top stone handle"));
-    if(Traversal==ETraversalState::Mantling){Advance(.38f);Check(ClimbPose->IsVisible()&&Traversal==ETraversalState::Mantling,TEXT("Mantle keeps the crouched climbing pose through the pull-up"));Advance(MantleDuration-.38f+.03f);}
+    if(Traversal==ETraversalState::Mantling){Advance(.38f);Check(CharacterVisual->IsVisible()&&Traversal==ETraversalState::Mantling,TEXT("The clothed character stays animated through the rooftop pull-up"));Advance(MantleDuration-.38f+.03f);}
     Check(Traversal==ETraversalState::Walking&&FMath::Abs(GetActorLocation().Z-(ExpeditionTower::SummitZ()+99))<3,TEXT("Stand on the ruined tower roof after climbing the entire wall"));
     FHitResult SummitHit;SetActorLocation(ExpeditionTower::Base+FVector(0,0,ExpeditionTower::Height+99),true,&SummitHit);RefreshLoot();
     Check(!SummitHit.bBlockingHit&&Nearby.IsValid()&&Nearby->ItemId==TEXT("TowerSummitCheckpoint"),TEXT("Summit checkpoint can be reached and interacted with"));
@@ -193,11 +184,11 @@ void AExplorerCharacter::RunSmokeTest() {
     Check(BeginHang()&&Traversal==ETraversalState::Reaching,TEXT("Enter the top handhold from the roof edge to climb back down"));
     if(Traversal==ETraversalState::Reaching)Advance(RoofEntryDuration+.03f);
     Check(Traversal==ETraversalState::Clinging&&CurrentGrip==ExpeditionTower::Steps-1,TEXT("Reverse mantle clears the roof collision before lowering the character"));
-    GripCooldown=0;bool Down=MoveWallGrip(0,-1);if(Down)Advance(GripTransferDuration+.03f);
-    Check(Down&&CurrentGrip==ExpeditionTower::Steps-2,TEXT("Descend between wall grips with S"));
-    // Releasing a handle must restore gravity and the walking mesh.
-    SetActorLocation(ExpeditionTower::HangPosition(0)+FVector(-40,0,0));SetActorRotation(FRotator::ZeroRotator);Traversal=ETraversalState::Walking;LedgeCooldown=0;BeginWallGrip();Drop();
-    Check(Traversal==ETraversalState::Walking&&GetCharacterMovement()->IsFalling()&&ClimbPose->IsVisible()&&WeaponMesh->GetAttachParent()==ClimbPose,TEXT("Drop restores gravity while retaining one presentation mesh and weapon socket"));
+    GripCooldown=0;bool Down=MoveWallGrip(0,-1);if(Down){Advance(.3f);JumpOrClimb();Advance(GripTransferDuration+CatchDuration+.05f);}
+    Check(Down&&CurrentGrip==ExpeditionTower::Steps-2,TEXT("Select a descending grip with S and catch it with Space"));
+    Drop();Check(Traversal==ETraversalState::Walking&&GetCharacterMovement()->IsFalling()&&CharacterVisual->IsVisible(),TEXT("Drop restores gravity and preserves the clothed presentation mesh"));
+    SetActorLocation(ExpeditionTower::HangPosition(0)+FVector(-40,0,0));SetActorRotation(FRotator::ZeroRotator);GetCharacterMovement()->SetMovementMode(MOVE_Walking);LedgeCooldown=0;BeginWallGrip();const FVector CancelStart=GetActorLocation();Drop();
+    Check(Traversal==ETraversalState::Walking&&GetCharacterMovement()->IsMovingOnGround()&&GetActorLocation().Equals(CancelStart,.01f),TEXT("Cancelling a ground probe preserves its standing location and walking mode"));
     SetActorLocation(FVector(3000,0,2299));GetCharacterMovement()->SetMovementMode(MOVE_Walking);LedgeCooldown=1;
     auto* Guard=GetWorld()->SpawnActor<AExpeditionGuard>(FVector(3400,0,2200),FRotator(0,-90,0));Guard->bTrainingTarget=true;
     Camera->SetWorldLocation(FVector(3100,0,2340));Camera->SetWorldRotation((FVector(3400,0,2295)-Camera->GetComponentLocation()).Rotation());
@@ -207,10 +198,10 @@ void AExplorerCharacter::RunSmokeTest() {
     const FQuat IdleArm=ClimbPose->GetBoneTransformByName(TEXT("upperarm_r"),EBoneSpaces::ComponentSpace).GetRotation();
     Advance(.075f);
     const FQuat RecoilArm=ClimbPose->GetBoneTransformByName(TEXT("upperarm_r"),EBoneSpaces::ComponentSpace).GetRotation();
-    Check(FireAnimationTime>0&&ClimbPose->IsVisible()&&IdleArm.AngularDistance(RecoilArm)>.01f,TEXT("Successful pistol shot animates the upper body over the aiming pose"));
+    Check(FireAnimationTime>0&&CharacterVisual->IsVisible()&&IdleArm.AngularDistance(RecoilArm)>.01f,TEXT("Successful pistol shot animates the upper body over the aiming pose"));
     Check(WeaponMesh->GetAttachParent()==ClimbPose,TEXT("Weapon follows the animated hand socket"));
     const float ShotPhase=FireAnimationTime;int32 Before=Magazine[0];FireShot();Check(Magazine[0]==Before&&FireAnimationTime==ShotPhase,TEXT("Fire rate blocks both extra rounds and animation retriggers"));
-    AimStop();Advance(.9f);Check(FireAnimationTime<0&&ArmAnimationAlpha<.01f&&ClimbPose->IsVisible(),TEXT("Firing animation recovers into locomotion without switching meshes"));
+    AimStop();Advance(.9f);Check(FireAnimationTime<0&&ArmAnimationAlpha<.01f&&CharacterVisual->IsVisible(),TEXT("Firing animation recovers into locomotion without switching meshes"));
     Magazine[0]=0;Reserve[0]=5;Reload();
     const FQuat ReloadStartArm=ClimbPose->GetBoneTransformByName(TEXT("lowerarm_l"),EBoneSpaces::ComponentSpace).GetRotation();
     Advance(.55f);Check(bReloading&&ReloadStartArm.AngularDistance(ClimbPose->GetBoneTransformByName(TEXT("lowerarm_l"),EBoneSpaces::ComponentSpace).GetRotation())>.1f,TEXT("Reload plays the official left-hand action while the weapon socket stays attached"));
@@ -241,7 +232,7 @@ void AExplorerCharacter::RunSmokeTest() {
     UE_LOG(LogTemp,Display,TEXT("MOVING_AIM strafe=%s footMotion=%.2f back=%s footMotion=%.2f speed=%.1f"),*StrafeAnimation,StrafeFootMotion,*BackAnimation,BackFootMotion,GetVelocity().Size2D());
     Check(StrafeFootMotion>5&&BackFootMotion>5&&StrafeAnimation!=BackAnimation,TEXT("Moving aim evaluates distinct strafe and backward foot motion over a cycle"));
     GetCharacterMovement()->Velocity=FVector::ZeroVector;
-    Magazine[1]=30;ShotCooldown=0;StartFire();Advance(.30f);StopFire();Check(Magazine[1]<=27&&FireAnimationTime>=0&&ClimbPose->IsVisible(),TEXT("Automatic rifle fire repeatedly triggers the rifle recoil animation"));const FQuat BeforeRetrigger=ClimbPose->GetBoneTransformByName(TEXT("upperarm_r"),EBoneSpaces::ComponentSpace).GetRotation();ShotCooldown=0;FireShot();
+    Magazine[1]=30;ShotCooldown=0;StartFire();Advance(.30f);StopFire();Check(Magazine[1]<=27&&FireAnimationTime>=0&&CharacterVisual->IsVisible(),TEXT("Automatic rifle fire repeatedly triggers the rifle recoil animation"));const FQuat BeforeRetrigger=ClimbPose->GetBoneTransformByName(TEXT("upperarm_r"),EBoneSpaces::ComponentSpace).GetRotation();ShotCooldown=0;FireShot();
     Check(BeforeRetrigger.AngularDistance(ClimbPose->GetBoneTransformByName(TEXT("upperarm_r"),EBoneSpaces::ComponentSpace).GetRotation())<.005f,TEXT("Rifle recoil retrigger preserves the outgoing arm pose before crossfading"));
     Pistol();Check(Weapon==0&&WeaponMesh->GetStaticMesh()&&WeaponMesh->GetStaticMesh()->GetPathName().Contains(TEXT("SM_Pistol")),TEXT("Pistol selection uses official pistol mesh"));
     Health=25;Medkits=1;Heal();Check(Health==85&&Medkits==0,TEXT("Medkit heals and is consumed"));Heal();Check(Health==85,TEXT("No free healing with empty inventory"));

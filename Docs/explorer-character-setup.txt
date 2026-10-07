@@ -1,0 +1,3 @@
+Explorer character: /Game/Explorer/Character/Explorer/SkeletalMeshes/SK_Diesel.SK_Diesel
+Runtime IK retargeter: /Game/Explorer/RTG_Explorer_Diesel.RTG_Explorer_Diesel
+EXPLORER_SETUP_COMPLETE

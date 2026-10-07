@@ -40,6 +40,10 @@
     {
       "Name": "BlendStack",
       "Enabled": true
+    },
+    {
+      "Name": "IKRig",
+      "Enabled": true
     }
   ]
 }

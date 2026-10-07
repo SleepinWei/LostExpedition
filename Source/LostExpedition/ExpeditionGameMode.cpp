@@ -18,7 +18,7 @@ AExpeditionGameMode::AExpeditionGameMode() {
 }
 void AExpeditionGameMode::BeginPlay() {
     Super::BeginPlay();
-    if(FParse::Param(FCommandLine::Get(),TEXT("AnimationVisualReview"))||FParse::Param(FCommandLine::Get(),TEXT("MotionMatchingVisualReview"))) {
+    if(FParse::Param(FCommandLine::Get(),TEXT("AnimationVisualReview"))||FParse::Param(FCommandLine::Get(),TEXT("MotionMatchingVisualReview"))||FParse::Param(FCommandLine::Get(),TEXT("WallClimbVisualReview"))) {
         GetWorldTimerManager().SetTimer(AnimationReviewTimer,this,&AExpeditionGameMode::StartAnimationReview,3.f,false);
     }
     if(FParse::Param(FCommandLine::Get(),TEXT("WatchtowerStart"))) {
@@ -87,7 +87,7 @@ void AExpeditionHUD::DrawHUD() {
     Text(TEXT("WASD move  /  SHIFT sprint  /  SPACE jump & climb  /  E interact  /  TAB journal"),W*.5f-345*S,H-28*S,Dim,.85);
     if(P->Traversal!=ETraversalState::Walking) {
         DrawRect(Ink,W*.5f-230*S,H*.68f,460*S,44*S);
-        Text(P->Traversal==ETraversalState::Clinging||P->Traversal==ETraversalState::Reaching?TEXT("W S climb / A D traverse / SPACE top out / CTRL drop"):P->Traversal==ETraversalState::Hanging?TEXT("A / D shimmy / SPACE climb up / CTRL drop"):TEXT("CLIMBING"),W*.5f-210*S,H*.68f+14*S,Gold,1.05);
+        Text(P->Traversal==ETraversalState::Probing?TEXT("REACHING / [SPACE] jump to the handhold / CTRL cancel"):P->Traversal==ETraversalState::GripJump?TEXT("JUMP / reaching for the handhold"):P->Traversal==ETraversalState::Catching?TEXT("CATCH / securing hands and feet"):P->Traversal==ETraversalState::Clinging||P->Traversal==ETraversalState::Reaching?TEXT("W S A D reach / SPACE jump or top out / CTRL drop"):P->Traversal==ETraversalState::Hanging?TEXT("A / D shimmy / SPACE climb up / CTRL drop"):TEXT("CLIMBING"),W*.5f-210*S,H*.68f+14*S,Gold,1.05);
     } else if(P->Nearby.IsValid()&&!P->bJournal) {
         FString Prompt=TEXT("[E]  ")+P->Nearby->Prompt();float TW,TH;GetTextSize(Prompt,TW,TH,GEngine->GetSmallFont(),1.2*S);
         DrawRect(Ink,W/2-TW/2-18,H*.68f,TW+36,40*S);Text(Prompt,W/2-TW/2,H*.68f+12*S,Gold,1.2);
@@ -110,7 +110,7 @@ void AExpeditionHUD::DrawHUD() {
         float X=W/2-340*S,Y=H/2-220*S;
         Text(P->bCompleted?TEXT("EXPEDITION COMPLETE"):TEXT("EXPLORER'S JOURNAL"),X,Y,Gold,2.4);
         Text(TEXT("PALM ISLAND  /  an island beyond the charts"),X,Y+55*S,Dim,1.1);
-        TArray<FString> Lines=P->bCompleted?TArray<FString>{TEXT("You recovered all three relics and escaped the sanctuary."),TEXT("The lost expedition's trail lives on."),TEXT("F5  /  Start a fresh expedition")}:TArray<FString>{TEXT("01  Leave the beach. Follow the trail through the palms."),TEXT("02  Climb the forest trail to the central highland."),TEXT("03  Explore the jungle and recover the tower key."),TEXT("04  E grabs stone handles. W/S climb; A/D traverse."),TEXT("05  SPACE climbs onto the roof. Recover the final relic."),TEXT("06  Return to the beach beacon to finish the expedition."),TEXT("RMB aim / LMB fire / 1-2 weapons / R reload"),TEXT("Q medkit / G grenade / CTRL drop / F5 fresh start"),TEXT("TAB  /  Return to the expedition")};
+        TArray<FString> Lines=P->bCompleted?TArray<FString>{TEXT("You recovered all three relics and escaped the sanctuary."),TEXT("The lost expedition's trail lives on."),TEXT("F5  /  Start a fresh expedition")}:TArray<FString>{TEXT("01  Leave the beach. Follow the trail through the palms."),TEXT("02  Climb the forest trail to the central highland."),TEXT("03  Explore the jungle and recover the tower key."),TEXT("04  E reaches for stone handles. WASD selects the next grip."),TEXT("05  SPACE jumps to a grip / tops out. Recover the final relic."),TEXT("06  Return to the beach beacon to finish the expedition."),TEXT("RMB aim / LMB fire / 1-2 weapons / R reload"),TEXT("Q medkit / G grenade / CTRL drop / F5 fresh start"),TEXT("TAB  /  Return to the expedition")};
         for(int I=0;I<Lines.Num();I++)Text(Lines[I],X,Y+(100+I*35)*S,White,1.15);
     }
 }

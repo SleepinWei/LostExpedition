@@ -3,6 +3,7 @@
 #include "Components/PoseableMeshComponent.h"
 #include "ExplorerPoseComponent.h"
 #include "ExplorerMotionMatching.h"
+#include "ExplorerVisualComponent.h"
 #include "Animation/AnimSequence.h"
 #include "ExpeditionActors.h"
 #include "Camera/CameraComponent.h"
@@ -39,6 +40,12 @@ AExplorerCharacter::AExplorerCharacter() {
     ClimbPose->SetSkinnedAssetAndUpdate(GetMesh()->GetSkinnedAsset());ClimbPose->SetRelativeTransform(GetMesh()->GetRelativeTransform());
     ClimbPose->SetCollisionEnabled(ECollisionEnabled::NoCollision);ClimbPose->SetVisibility(true);GetMesh()->SetVisibility(false);
     ClimbPose->AddTickPrerequisiteComponent(GetMesh());
+    CharacterVisual=CreateDefaultSubobject<UExplorerVisualComponent>(TEXT("ExplorerCharacterVisual"));CharacterVisual->SetupAttachment(RootComponent);
+    CharacterVisual->SetSkinnedAssetAndUpdate(LoadObject<USkeletalMesh>(nullptr,TEXT("/Game/Explorer/Character/Explorer/SkeletalMeshes/SK_Diesel")));
+    CharacterVisual->SetRelativeTransform(GetMesh()->GetRelativeTransform());CharacterVisual->SetRelativeScale3D(FVector(.86f));
+    CharacterVisual->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    for(const TCHAR* Name:{TEXT("Probe_Ground"),TEXT("Probe_Left"),TEXT("Probe_Right"),TEXT("Jump_Left"),TEXT("Jump_Right"),TEXT("Catch"),TEXT("Hang")})
+        WallClimbAnimations.Add(LoadObject<UAnimSequence>(nullptr,*(FString(TEXT("/Game/Animation/WallClimb/AS_"))+Name)));
     WeaponIdleAnimations={LoadObject<UAnimSequence>(nullptr,TEXT("/Game/Characters/Mannequins/Anims/Pistol/MF_Pistol_Idle_ADS")),LoadObject<UAnimSequence>(nullptr,TEXT("/Game/Characters/Mannequins/Anims/Rifle/MF_Rifle_Idle_ADS"))};
     WeaponFireAnimations={LoadObject<UAnimSequence>(nullptr,TEXT("/Game/Characters/Mannequins/Anims/Pistol/MM_Pistol_Fire")),LoadObject<UAnimSequence>(nullptr,TEXT("/Game/Characters/Mannequins/Anims/Rifle/MM_Rifle_Fire"))};
     WeaponReloadAnimations={LoadObject<UAnimSequence>(nullptr,TEXT("/Game/Characters/Mannequins/Anims/Pistol/MM_Pistol_Reload")),LoadObject<UAnimSequence>(nullptr,TEXT("/Game/Characters/Mannequins/Anims/Rifle/MM_Rifle_Reload"))};
@@ -154,19 +161,22 @@ bool AExplorerCharacter::BeginMantle() {
     MantleEnd=Ledge-WallNormal*85+FVector(0,0,99);
     FCollisionQueryParams Params;Params.AddIgnoredActor(this);
     if(GetWorld()->OverlapBlockingTestByChannel(MantleEnd,FQuat::Identity,ECC_Pawn,FCollisionShape::MakeCapsule(38,94),Params)){Notify(TEXT("No room above this ledge"));return false;}
-    bBufferedMantle=false;MantleStart=GetActorLocation();MantleTime=0;Traversal=ETraversalState::Mantling;return true;
+    MantleStart=GetActorLocation();MantleTime=0;Traversal=ETraversalState::Mantling;return true;
 }
 void AExplorerCharacter::JumpOrClimb() {
     if(bJournal||bCompleted)return;
-    if(Traversal==ETraversalState::Clinging){if(CurrentGrip==ExpeditionTower::Steps-1)BeginMantle();else MoveWallGrip(0,1);return;}
-    if(Traversal==ETraversalState::Reaching){if(TargetGrip==ExpeditionTower::Steps-1&&!bEnteringFromRoof)bBufferedMantle=true;else {BufferedTraversalInput=FVector2D(0,1);TraversalBufferRemaining=FMath::Max(.18f,ReachDuration-ReachTime+.18f);}return;}
+    if(Traversal==ETraversalState::Probing){bProbeJumpRequested=true;if(ProbeTime>=ProbeMinimumTime)StartGripTransfer(TargetGrip);return;}
+    if(Traversal==ETraversalState::GripJump||Traversal==ETraversalState::Catching){bBufferedGripJump=true;return;}
+    if(Traversal==ETraversalState::Clinging){if(CurrentGrip==ExpeditionTower::Steps-1)BeginMantle();else {const FVector2D Direction=FVector2D(RightInput,ForwardInput);ProbeGrip(FindGrip(CurrentGrip,Direction.IsNearlyZero(.15f)?FVector2D(0,1):Direction));bProbeJumpRequested=Traversal==ETraversalState::Probing;}return;}
+    if(Traversal==ETraversalState::Reaching)return;
     if(Traversal==ETraversalState::Hanging){BeginMantle();return;}
     if(Traversal==ETraversalState::Mantling)return;
-    if(BeginHang()){BeginMantle();return;}Jump();
+    if(BeginHang()){if(Traversal==ETraversalState::Probing)bProbeJumpRequested=true;else BeginMantle();return;}Jump();
 }
 void AExplorerCharacter::Drop() {
     if(Traversal==ETraversalState::Walking)return;
-    ClearTraversalInput();TraversalVelocity=FVector::ZeroVector;CurrentGrip=-1;bEnteringFromRoof=false;ArmAnimationAlpha=0;FireAnimationTime=-1;Traversal=ETraversalState::Walking;GetCharacterMovement()->SetMovementMode(MOVE_Falling);LedgeCooldown=.7;UpdateClimbPose();
+    const bool GroundCancel=Traversal==ETraversalState::Probing&&bGroundProbe;
+    ClearTraversalInput();bGroundProbe=bProbeJumpRequested=bBufferedGripJump=false;TraversalVelocity=FVector::ZeroVector;CurrentGrip=-1;bEnteringFromRoof=false;ArmAnimationAlpha=0;FireAnimationTime=-1;Traversal=ETraversalState::Walking;GetCharacterMovement()->SetMovementMode(GroundCancel?MOVE_Walking:MOVE_Falling);LedgeCooldown=.7;UpdateClimbPose();
 }
 void AExplorerCharacter::RefreshLoot() {
     Nearby.Reset();float Best=230;
@@ -286,13 +296,13 @@ bool AExplorerCharacter::BeginWallGrip() {
     if(GetWorld()->OverlapBlockingTestByChannel(Target,FQuat::Identity,ECC_Pawn,FCollisionShape::MakeCapsule(38,94),Query))return false;
     FHitResult Hit;GetWorld()->SweepSingleByChannel(Hit,GetActorLocation(),Target,FQuat::Identity,ECC_Pawn,FCollisionShape::MakeCapsule(38,94),Query);
     if(Hit.bBlockingHit)return false;
-    ClearTraversalInput();TraversalVelocity=FVector::ZeroVector;BeginGrabAnimation();CurrentGrip=TargetGrip=Best;WallNormal=ExpeditionTower::WallNormal;Ledge=ExpeditionTower::Grip(Best);
+    ClearTraversalInput();TraversalVelocity=FVector::ZeroVector;BeginGrabAnimation();CurrentGrip=-1;TargetGrip=Best;bGroundProbe=true;ProbeTime=0;bProbeJumpRequested=false;WallNormal=ExpeditionTower::WallNormal;Ledge=ExpeditionTower::Grip(Best);
     GetCharacterMovement()->StopMovementImmediately();GetCharacterMovement()->SetMovementMode(MOVE_Flying);
-    SetActorLocation(Target);SetActorRotation((-WallNormal).Rotation());Traversal=ETraversalState::Clinging;
+    SetActorRotation((-WallNormal).Rotation());Traversal=ETraversalState::Probing;
     StopFire();bReloading=false;GripCooldown=.08f;UpdateClimbPose();return true;
 }
 void AExplorerCharacter::ClearTraversalInput() {
-    BufferedTraversalInput=PreviousTraversalInput=FVector2D::ZeroVector;TraversalBufferRemaining=0;QueuedGrip=-1;bBufferedMantle=false;
+    BufferedTraversalInput=FVector2D::ZeroVector;bProbeJumpRequested=bBufferedGripJump=false;
     ForwardInput=RightInput=0;
 }
 int32 AExplorerCharacter::FindGrip(int32 From,const FVector2D& Value) const {
@@ -309,73 +319,86 @@ int32 AExplorerCharacter::FindGrip(int32 From,const FVector2D& Value) const {
     }
     return Candidate;
 }
-bool AExplorerCharacter::StartGripTransfer(int32 Candidate) {
-    if(Candidate<0)return false;
-    // Recheck the actual body path; queued targets can become obstructed.
+bool AExplorerCharacter::ProbeGrip(int32 Candidate) {
+    if(Candidate<0||Candidate>=ExpeditionTower::Steps||Candidate==CurrentGrip||bJournal)return false;
+    if(Traversal!=ETraversalState::Clinging&&Traversal!=ETraversalState::Probing)return false;
     FCollisionQueryParams Query;Query.AddIgnoredActor(this);FHitResult Hit;
     if(GetWorld()->SweepSingleByChannel(Hit,GetActorLocation(),ExpeditionTower::HangPosition(Candidate),FQuat::Identity,ECC_Pawn,FCollisionShape::MakeCapsule(38,94),Query))return false;
+    if(Traversal==ETraversalState::Probing&&TargetGrip==Candidate)return true;
     const FVector Delta=ExpeditionTower::Grip(Candidate)-ExpeditionTower::Grip(CurrentGrip);
-    bLeadRight=FMath::Abs(Delta.Y)>100?Delta.Y>0:!bLeadRight;
-    ReachDuration=FMath::Clamp(Delta.Size()/240.f,.48f,GripTransferDuration);
-    ReachStartVelocity=TraversalVelocity.GetClampedToMaxSize(170);
-    ReachCurveStartTime=0;ReachCurveNextGrip=-2;ReachEndVelocity=FVector::ZeroVector;
-    bEnteringFromRoof=false;TargetGrip=Candidate;ReachStart=GetActorLocation();ReachTime=0;Traversal=ETraversalState::Reaching;
-    BufferedTraversalInput=FVector2D::ZeroVector;TraversalBufferRemaining=0;QueuedGrip=-1;return true;
+    bLeadRight=FMath::Abs(Delta.Y)>50?Delta.Y>0:!bLeadRight;
+    BeginGrabAnimation();TargetGrip=Candidate;ProbeTime=0;bGroundProbe=false;bProbeJumpRequested=false;Traversal=ETraversalState::Probing;
+    return true;
+}
+bool AExplorerCharacter::StartGripTransfer(int32 Candidate) {
+    if(Traversal!=ETraversalState::Probing||Candidate<0)return false;
+    FCollisionQueryParams Query;Query.AddIgnoredActor(this);FHitResult Hit;
+    if(GetWorld()->SweepSingleByChannel(Hit,GetActorLocation(),ExpeditionTower::HangPosition(Candidate),FQuat::Identity,ECC_Pawn,FCollisionShape::MakeCapsule(38,94),Query)) {
+        bProbeJumpRequested=false;Notify(TEXT("The next handhold is obstructed"));return false;
+    }
+    BeginGrabAnimation();ReachDuration=FMath::Clamp(FVector::Dist(GetActorLocation(),ExpeditionTower::HangPosition(Candidate))/230.f,.60f,GripTransferDuration);
+    bEnteringFromRoof=false;TargetGrip=Candidate;ReachStart=GetActorLocation();ReachTime=0;Traversal=ETraversalState::GripJump;TraversalVelocity=FVector::ZeroVector;bProbeJumpRequested=false;
+    StopFire();bReloading=false;return true;
 }
 bool AExplorerCharacter::MoveWallGrip(float Horizontal,float Vertical) {
     if(bJournal)return false;
-    if(Traversal==ETraversalState::Reaching) {
-        BufferedTraversalInput=FVector2D(Horizontal,Vertical);TraversalBufferRemaining=FMath::Max(.18f,ReachDuration-ReachTime+.18f);return false;
+    if(Traversal==ETraversalState::GripJump||Traversal==ETraversalState::Catching) {
+        BufferedTraversalInput=FVector2D(Horizontal,Vertical);return false;
     }
-    if(Traversal!=ETraversalState::Clinging||GripCooldown>0)return false;
-    return StartGripTransfer(FindGrip(CurrentGrip,FVector2D(Horizontal,Vertical)));
+    if(Traversal!=ETraversalState::Clinging&&Traversal!=ETraversalState::Probing)return false;
+    return ProbeGrip(FindGrip(CurrentGrip,FVector2D(Horizontal,Vertical)));
 }
 void AExplorerCharacter::UpdateTraversal(float DT) {
     const bool WasMantling=Traversal==ETraversalState::Mantling;
     const FVector2D Input=bJournal?FVector2D::ZeroVector:FVector2D(RightInput,ForwardInput);
-    if(Traversal==ETraversalState::Reaching&&!Input.IsNearlyZero(.15f)&&!Input.Equals(PreviousTraversalInput,.1f)) {
-        BufferedTraversalInput=Input;TraversalBufferRemaining=FMath::Max(.18f,ReachDuration-ReachTime+.18f);
-        if(Input.Y<-.15f)bBufferedMantle=false;
-    }
-    PreviousTraversalInput=Input;
-    if(bJournal){BufferedTraversalInput=FVector2D::ZeroVector;TraversalBufferRemaining=0;}
-    FVector2D Command=!Input.IsNearlyZero(.15f)?Input:(TraversalBufferRemaining>0?BufferedTraversalInput:FVector2D::ZeroVector);
-    if(Traversal==ETraversalState::Clinging&&GripCooldown<=0&&!bJournal)StartGripTransfer(FindGrip(CurrentGrip,Command));
-    // Consume the remaining timestep at contact boundaries. Chaining has no cooldown
-    // or extra frame of idle, including at 30 Hz and when reversing direction.
+    if(bJournal){bProbeJumpRequested=bBufferedGripJump=false;BufferedTraversalInput=FVector2D::ZeroVector;}
     float Remaining=DT;
-    for(int32 Boundary=0;Boundary<4&&Remaining>SMALL_NUMBER&&Traversal==ETraversalState::Reaching;Boundary++) {
-        QueuedGrip=bEnteringFromRoof?-1:FindGrip(TargetGrip,Command);
-        const FVector End=ExpeditionTower::HangPosition(TargetGrip);
-        FVector EndVelocity=FVector::ZeroVector;
-        if(QueuedGrip>=0) {
-            const FVector Next=ExpeditionTower::HangPosition(QueuedGrip)-End;
-            const FVector Direction=ExpeditionTower::HangPosition(TargetGrip)-ExpeditionTower::HangPosition(CurrentGrip);
-            if(FVector::DotProduct(Next.GetSafeNormal(),Direction.GetSafeNormal())>.3f)EndVelocity=(Next.GetSafeNormal()+Direction.GetSafeNormal()).GetSafeNormal()*150;
+    if(Traversal==ETraversalState::Clinging&&GripCooldown<=0&&!Input.IsNearlyZero(.15f))ProbeGrip(FindGrip(CurrentGrip,Input));
+    if(Traversal==ETraversalState::Probing) {
+        if(bJournal) {
+            if(bGroundProbe)Drop();else {Traversal=ETraversalState::Clinging;TargetGrip=CurrentGrip;}
+        } else {
+            if(!bGroundProbe&&!Input.IsNearlyZero(.15f))ProbeGrip(FindGrip(CurrentGrip,Input));
+            ProbeTime+=DT;
+            if(bProbeJumpRequested&&ProbeTime>=ProbeMinimumTime) {
+                StartGripTransfer(TargetGrip);
+                Remaining=FMath::Clamp(ProbeTime-ProbeMinimumTime,0.f,DT);
+            }
         }
-        if(!bEnteringFromRoof&&QueuedGrip!=ReachCurveNextGrip) {
-            // Replan the remaining curve from the current position and analytic
-            // velocity when the player releases or changes direction. Changing
-            // only the final tangent would otherwise move the body instantly.
-            ReachCurveNextGrip=QueuedGrip;ReachCurveStartTime=ReachTime;ReachStart=GetActorLocation();ReachStartVelocity=TraversalVelocity;ReachEndVelocity=EndVelocity;
-        }
+    }
+    if(Traversal==ETraversalState::GripJump) {
         const float Step=FMath::Min(Remaining,FMath::Max(0.f,ReachDuration-ReachTime));Remaining-=Step;ReachTime+=Step;
         const float T=FMath::Clamp(ReachTime/ReachDuration,0.f,1.f);
-        const float Span=FMath::Max(SMALL_NUMBER,ReachDuration-ReachCurveStartTime),CurveTime=FMath::Clamp((ReachTime-ReachCurveStartTime)/Span,0.f,1.f);
-        FVector Target=FMath::CubicInterp(ReachStart,ReachStartVelocity*Span,End,ReachEndVelocity*Span,CurveTime);
-        if(bEnteringFromRoof){FVector Above=End;Above.Z=ExpeditionTower::SummitZ()+110;Target=T<.45f?FMath::Lerp(ReachStart,Above,FMath::SmoothStep(0.f,.45f,T)):FMath::Lerp(Above,End,FMath::SmoothStep(.45f,1.f,T));}
-        const FVector Old=GetActorLocation();FHitResult Hit;SetActorLocation(Target,true,&Hit);
-        TraversalVelocity=bEnteringFromRoof?(Step>SMALL_NUMBER?(GetActorLocation()-Old)/Step:FVector::ZeroVector):FMath::CubicInterpDerivative(ReachStart,ReachStartVelocity*Span,End,ReachEndVelocity*Span,CurveTime)/Span;
-        Ledge=FMath::Lerp(ExpeditionTower::Grip(CurrentGrip),ExpeditionTower::Grip(TargetGrip),FMath::SmoothStep(0.f,1.f,T));
-        if(Hit.bBlockingHit){Drop();Notify(TEXT("No clear reach to that handhold"));break;}
-        if(T>=1) {
-            CurrentGrip=TargetGrip;bEnteringFromRoof=false;Traversal=ETraversalState::Clinging;GripCooldown=0;TraversalVelocity=EndVelocity;
-            if(bBufferedMantle){bBufferedMantle=false;if(BeginMantle())break;}
-            if(!StartGripTransfer(QueuedGrip)){TraversalVelocity=FVector::ZeroVector;break;}
-            Command=!Input.IsNearlyZero(.15f)?Input:FVector2D::ZeroVector;
+        const FVector End=ExpeditionTower::HangPosition(TargetGrip),Arc=FVector::UpVector*24+WallNormal*7;
+        const float S=FMath::SmoothStep(0.f,1.f,T),Lift=FMath::Square(FMath::Sin(PI*T));
+        const FVector Target=FMath::Lerp(ReachStart,End,S)+Arc*Lift;
+        FHitResult Hit;SetActorLocation(Target,true,&Hit);
+        TraversalVelocity=((End-ReachStart)*6*T*(1-T)+Arc*PI*FMath::Sin(2*PI*T))/ReachDuration;
+        if(Hit.bBlockingHit){Drop();Notify(TEXT("Reach interrupted / falling"));}
+        else if(T>=1) {
+            CurrentGrip=TargetGrip;Ledge=ExpeditionTower::Grip(CurrentGrip);Traversal=ETraversalState::Catching;CatchTime=0;TraversalVelocity=FVector::ZeroVector;
         }
     }
-    TraversalBufferRemaining=FMath::Max(0.f,TraversalBufferRemaining-DT);
+    if(Traversal==ETraversalState::Catching) {
+        CatchTime+=Remaining;Remaining=0;
+        if(CatchTime>=CatchDuration) {
+            Traversal=ETraversalState::Clinging;bGroundProbe=false;
+            FVector2D Command=!Input.IsNearlyZero(.15f)?Input:BufferedTraversalInput;
+            const bool Next=bBufferedGripJump;bBufferedGripJump=false;BufferedTraversalInput=FVector2D::ZeroVector;
+            if(Next&&CurrentGrip==ExpeditionTower::Steps-1)BeginMantle();
+            else if(Next) {if(ProbeGrip(FindGrip(CurrentGrip,Command.IsNearlyZero(.15f)?FVector2D(0,1):Command)))bProbeJumpRequested=true;}
+            else if(!Command.IsNearlyZero(.15f))ProbeGrip(FindGrip(CurrentGrip,Command));
+        }
+    }
+    // Reverse mantle is the sole legacy reaching path, routed above the parapet.
+    if(Traversal==ETraversalState::Reaching&&bEnteringFromRoof) {
+        ReachTime+=DT;const float T=FMath::Clamp(ReachTime/RoofEntryDuration,0.f,1.f);
+        const FVector End=ExpeditionTower::HangPosition(TargetGrip);FVector Above=End;Above.Z=ExpeditionTower::SummitZ()+110;
+        const FVector Target=T<.45f?FMath::Lerp(ReachStart,Above,FMath::SmoothStep(0.f,.45f,T)):FMath::Lerp(Above,End,FMath::SmoothStep(.45f,1.f,T));
+        FHitResult Hit;SetActorLocation(Target,true,&Hit);
+        if(Hit.bBlockingHit){Drop();Notify(TEXT("Climb blocked"));}
+        else if(T>=1){CurrentGrip=TargetGrip;bEnteringFromRoof=false;Traversal=ETraversalState::Clinging;Ledge=ExpeditionTower::Grip(CurrentGrip);}
+    }
     if(Traversal==ETraversalState::Mantling) {
         MantleTime+=WasMantling?DT:Remaining;const float T=FMath::Clamp(MantleTime/MantleDuration,0.f,1.f);
         FVector Above=MantleStart;Above.Z=MantleEnd.Z+15;
@@ -389,5 +412,8 @@ void AExplorerCharacter::UpdateTraversal(float DT) {
             FVector E,N,At=GetActorLocation()+Tangent*RightInput*DT*145;
             if(TryLedge(At,-WallNormal,E,N)&&FMath::Abs(E.Z-Ledge.Z)<45&&FVector::DotProduct(N,WallNormal)>.8f){Ledge=E;WallNormal=N;SetActorLocation(Ledge+WallNormal*48-FVector(0,0,100),true);}
         }
-    } else if(Traversal==ETraversalState::Walking&&GetCharacterMovement()->IsFalling()&&GetVelocity().Z<100&&LedgeCooldown<=0&&!bJournal)BeginHang();
+    } else if(Traversal==ETraversalState::Walking&&LedgeCooldown<=0&&!bJournal) {
+        if(GetCharacterMovement()->IsFalling()&&GetVelocity().Z<100) {if(BeginHang()&&Traversal==ETraversalState::Probing)bProbeJumpRequested=true;}
+        else if(ForwardInput>.15f)BeginWallGrip();
+    }
 }

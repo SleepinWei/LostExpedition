@@ -18,7 +18,7 @@ All 51 sequences come from the installed UE 5.8 High mannequin template. Generat
 
 The graph blends Motion Matching with an explicit-time jump/fall/land sequence evaluator, then collects pose history before its final output. Motion Matching uses its internal blend stack with a 0.18-second transition and a 0.65–1.8 playback range. Weapon database changes interrupt a continuing result outside the allowed database; an old unarmed pose cannot persist after entering pistol/rifle aim.
 
-The hidden skeletal mesh evaluates this graph. Its resulting pose feeds the existing single visible action mesh, upper-body fire/reload/equip layers, full-body transition correction and climbing contact IK. The old directional weapon selector runs only when the generated Motion Matching blueprint is unavailable.
+The hidden skeletal mesh evaluates this graph. Its resulting pose feeds upper-body fire/reload/equip layers, full-body transition correction and climbing contact IK. The completed pose is then retargeted to the clothed Diesel character. The old directional weapon selector runs only when the generated Motion Matching blueprint is unavailable.
 
 ## Restore or regenerate
 
@@ -32,12 +32,12 @@ Content assets and full capture frames remain local. C++, setup scripts, configu
 
 ## Verification and coverage
 
-The UE 5.8.3 Mac Development editor build succeeds; the runtime suite passes **106 checks with zero failures**. Recorded rifle strafe/backward foot excursions are 62.78/53.13 cm across the tested cycles.
+The UE 5.8.3 Mac Development editor build succeeds; the runtime suite passes **112 checks with zero failures**. Recorded rifle strafe/backward foot excursions are 62.78/53.13 cm across the tested cycles.
 
 The runtime suite evaluates the actual AnimGraph while advancing CharacterMovement. It checks an unarmed forward jog, braking to idle, pistol strafe, rifle backward movement, database switching, past/future query samples, jump/fall/land blending and absence of animation-driven capsule displacement. It retains the complete tower route, contact, weapon, item and save regressions. Selected animation names, database names, times and costs are recorded in the report.
 
-`Scripts/MotionMatchingReview.command` requests 288 real game frames at a fixed animation/movement timestep of 1/24 second. The sequence includes start, sprint, 90-degree turn, stop, pistol strafing and fire, rifle backward fire and a jump. Frames stay in `Docs/MotionMatchingFrames/`; the compact preview is in the README. Assemble it with `python3 Scripts/assemble_animation_previews.py --motion-matching-only` using Pillow. The recorded run completed 287 screenshots; the preview substitutes the nearest completed frame for the one coalesced render request, preventing reuse of an old PNG. This capture uses actual animation evaluation and movement, with a following review camera.
+`Scripts/MotionMatchingReview.command` requests 288 real game frames at a fixed animation/movement timestep of 1/24 second. The sequence includes start, sprint, 90-degree turn, stop, pistol strafing and fire, rifle backward fire and a jump. Frames stay in `Docs/MotionMatchingFrames/`; the compact preview is in the README. Assemble it with `python3 Scripts/assemble_animation_previews.py --motion-matching-only` using Pillow. The assembly script uses only screenshots completed in the current run and substitutes the nearest completed frame if rendering coalesces a request, preventing reuse of an old PNG. This capture uses actual animation evaluation and movement, with a following review camera.
 
-The databases contain locomotion loops. Dedicated start/stop, pivot, stumble, varying landing and authored climbing clips are still absent. Matching plus blending improves selection and transitions but cannot replace missing animation coverage. Climbing continues to use the existing procedural contact system; root-motion Motion Warping is not active.
+The databases contain locomotion loops. Dedicated start/stop, pivot, stumble and varied landing clips are still absent. Wall climbing now has seven project-authored keyframe sequences described in [WALL_CLIMB.md](WALL_CLIMB.md). Matching plus blending improves selection and transitions but cannot replace missing animation coverage. Climbing uses explicit probe/leap/catch sequences with procedural contact correction; root-motion Motion Warping is not active.
 
 [Epic's Motion Matching documentation](https://dev.epicgames.com/documentation/en-us/unreal-engine/motion-matching-in-unreal-engine) describes schema, database, trajectory and pose-history setup. [Game Animation Sample](https://www.fab.com/listings/880e319a-a59e-4ed2-b268-b32dac7fa016) remains an optional source for expanding authored coverage; its content has not been imported.

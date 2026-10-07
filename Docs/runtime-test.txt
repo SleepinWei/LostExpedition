@@ -1,5 +1,5 @@
 Lost Expedition runtime smoke test
-106 checks; 0 failures
+112 checks; 0 failures
 
 PASS: Continuous island terrain generated with collision
 PASS: Tropical palms, canopy trees and dense grass are instanced
@@ -21,60 +21,66 @@ PASS: Low sandy coast and elevated central plateau
 PASS: Walk continuously from beach through jungle trail onto the highland
 PASS: Walk from highland to the first tower handhold
 PASS: Cannot grab a handhold while facing away
-PASS: Grab the first stone handle from the ground
+PASS: Approaching the first handle starts the exploratory reach stage
+PASS: Ground probing never teleports the capsule or automatically jumps
+PASS: The clothed Diesel character is visible and uses the runtime IK retargeter
+PASS: Retargeting preserves pelvis height instead of replacing it with the ground root
+PASS: Seven full body sequences cover ground reach, mirrored probe/leap, catch and hang
+PASS: The exploratory reach cannot top out
+PASS: Space explicitly launches the jump-to-grab stage
+PASS: Landing on a handhold enters the secure catch animation
+PASS: The catch settles into a supported hang on the first handle
 PASS: Intermediate wall handles cannot be used as walkable platforms
-PASS: Procedural wall pose lifts the hands to the stone grip
-PASS: Obstructed wall reach is rejected
-PASS: Held climb chains four transfers without an idle frame at 30 Hz
-PASS: Release finishes the current reach and cancels further held movement
-PASS: Held climb chains four transfers without an idle frame at 60 Hz
-PASS: Release finishes the current reach and cancels further held movement
-PASS: Held climb chains four transfers without an idle frame at 120 Hz
-PASS: Release finishes the current reach and cancels further held movement
-PASS: 30 and 120 Hz traversal paths agree within four centimetres
-PASS: Solved planted foot remains within eight centimetres of its wall contact
-PASS: Solved support hand stays within eight centimetres of its planted contact
-PASS: A brief direction tap during a reach buffers one next transfer
-PASS: Buffered tap executes once and does not repeat
-PASS: Reverse input queues a descent at the next contact
-PASS: Queued reversal returns to the previous handhold
-PASS: Journal cancels buffered and held traversal commands
-PASS: Releasing mid-reach preserves the body position and velocity when replanning
-PASS: Buffered Space enters the rooftop mantle at contact and carries only the remaining timestep
-PASS: Climb animation moves one hand ahead of the supporting hand
-PASS: Reaching shows the animated climbing mesh and stows the weapon
-PASS: Collision-safe handhold transfer 01 / 22
-PASS: Collision-safe handhold transfer 02 / 22
-PASS: Collision-safe handhold transfer 03 / 22
-PASS: Collision-safe handhold transfer 04 / 22
-PASS: Collision-safe handhold transfer 05 / 22
-PASS: Collision-safe handhold transfer 06 / 22
-PASS: Collision-safe handhold transfer 07 / 22
+PASS: An obstructed handhold cannot be selected for a reach
+PASS: Held direction probes the next grip while the body remains supported
+PASS: The selected handhold waits for Space after direction release
+PASS: Opening the journal cancels a probe without launching a jump
+PASS: Space leap evaluates between grips at 30 Hz
+PASS: A jump command catches exactly one selected grip
+PASS: Space leap evaluates between grips at 60 Hz
+PASS: A jump command catches exactly one selected grip
+PASS: Space leap evaluates between grips at 120 Hz
+PASS: A jump command catches exactly one selected grip
+PASS: 30 and 120 Hz jump paths agree within one centimetre
+PASS: The clothed character's planted feet match the wall within eight centimetres
+PASS: The clothed character's hands match the stone holds within eight centimetres
+PASS: An early Space press preserves a minimum visible anticipation
+PASS: The buffered Space press launches after anticipation
+PASS: One Space press during a leap buffers exactly one subsequent grip jump
+PASS: A new obstacle during flight safely interrupts the grab and restores gravity
+PASS: Probe / Space leap / secure catch 01 / 22
+PASS: Probe / Space leap / secure catch 02 / 22
+PASS: Probe / Space leap / secure catch 03 / 22
+PASS: Probe / Space leap / secure catch 04 / 22
+PASS: Probe / Space leap / secure catch 05 / 22
+PASS: Probe / Space leap / secure catch 06 / 22
+PASS: Probe / Space leap / secure catch 07 / 22
 PASS: Horizontal gap requires a deliberate sideways reach
-PASS: Collision-safe handhold transfer 08 / 22
+PASS: Probe / Space leap / secure catch 08 / 22
 PASS: Horizontal gap requires a deliberate sideways reach
-PASS: Collision-safe handhold transfer 09 / 22
-PASS: Collision-safe handhold transfer 10 / 22
-PASS: Collision-safe handhold transfer 11 / 22
-PASS: Collision-safe handhold transfer 12 / 22
-PASS: Collision-safe handhold transfer 13 / 22
-PASS: Collision-safe handhold transfer 14 / 22
-PASS: Collision-safe handhold transfer 15 / 22
-PASS: Collision-safe handhold transfer 16 / 22
-PASS: Collision-safe handhold transfer 17 / 22
-PASS: Collision-safe handhold transfer 18 / 22
-PASS: Collision-safe handhold transfer 19 / 22
-PASS: Collision-safe handhold transfer 20 / 22
-PASS: Collision-safe handhold transfer 21 / 22
-PASS: Collision-safe handhold transfer 22 / 22
+PASS: Probe / Space leap / secure catch 09 / 22
+PASS: Probe / Space leap / secure catch 10 / 22
+PASS: Probe / Space leap / secure catch 11 / 22
+PASS: Probe / Space leap / secure catch 12 / 22
+PASS: Probe / Space leap / secure catch 13 / 22
+PASS: Probe / Space leap / secure catch 14 / 22
+PASS: Probe / Space leap / secure catch 15 / 22
+PASS: Probe / Space leap / secure catch 16 / 22
+PASS: Probe / Space leap / secure catch 17 / 22
+PASS: Probe / Space leap / secure catch 18 / 22
+PASS: Probe / Space leap / secure catch 19 / 22
+PASS: Probe / Space leap / secure catch 20 / 22
+PASS: Probe / Space leap / secure catch 21 / 22
+PASS: Probe / Space leap / secure catch 22 / 22
 PASS: Start the final mantle from the top stone handle
-PASS: Mantle keeps the crouched climbing pose through the pull-up
+PASS: The clothed character stays animated through the rooftop pull-up
 PASS: Stand on the ruined tower roof after climbing the entire wall
 PASS: Summit checkpoint can be reached and interacted with
 PASS: Enter the top handhold from the roof edge to climb back down
 PASS: Reverse mantle clears the roof collision before lowering the character
-PASS: Descend between wall grips with S
-PASS: Drop restores gravity while retaining one presentation mesh and weapon socket
+PASS: Select a descending grip with S and catch it with Space
+PASS: Drop restores gravity and preserves the clothed presentation mesh
+PASS: Cancelling a ground probe preserves its standing location and walking mode
 PASS: Official pistol and rifle pose and firing sequences load
 PASS: Fire consumes one round
 PASS: Hitscan damages skeletal guard
@@ -108,7 +114,7 @@ PASS: Checkpoint save roundtrip
 PASS: Death returns to checkpoint
 PASS: Grenade applies radial damage
 
-Fixed-step contact metrics: support hand 0.000 cm; planted foot 0.000 cm; 30/120 Hz body path difference 0.000 cm.
+Fixed-step contact metrics: support hand 0.000 cm; planted foot 4.122 cm; 30/120 Hz body path difference 0.000 cm.
 
 Evaluated Motion Matching selections:
 PSD_Unarmed / MF_Unarmed_Jog_Fwd @ 0.736 s; cost -0.000; speed 650.0; requested PSD_Unarmed

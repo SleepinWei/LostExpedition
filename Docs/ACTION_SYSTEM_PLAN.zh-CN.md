@@ -59,6 +59,10 @@ UE 5.8.3 Mac Development 编译成功。真实场景中 **94 项检查通过**�
 
 恢复、运行验证、实机捕获与准确覆盖范围见 [MOTION_MATCHING.md](MOTION_MATCHING.md)。前面的 94 项检查是首次升级的历史结果，最新结果见 [runtime-test.txt](runtime-test.txt)。
 
+## 三阶段爬墙与着装人物已接入
+
+最新升级已使用免费 CC0 的 Diesel 着装人物，通过 Unreal IK Retargeter 重定向完整动作姿态，并新增七个全身关键帧动画。爬墙改为选择把手并伸手试探、等待空格、沿碰撞检测弧线起跳抓取，再进入抓稳恢复。这一交互取代首次升级中的按住方向自动连续换手。素材来源、恢复与覆盖范围见 [WALL_CLIMB.md](WALL_CLIMB.md)，最新运行结果见 [runtime-test.txt](runtime-test.txt)。
+
 ## 剩余动作覆盖与下一步
 
 本次接入不依赖 Fab 登录或 Game Animation Sample。示例尚未下载迁移，可以用来扩充专门的起步、停步、急转、攀爬伸手与多种落地动作。

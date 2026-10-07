@@ -64,9 +64,13 @@ The next upgrade replaces active ground locomotion with Epic's compiled Motion M
 
 Generation, runtime verification, capture workflow and precise coverage are recorded in [MOTION_MATCHING.md](MOTION_MATCHING.md). The first upgrade's 94-check result above is historical; the current results are in [runtime-test.txt](runtime-test.txt).
 
+## Three-stage wall climbing and clothed hero implemented
+
+The latest upgrade replaces the visible mannequin with the CC0 Diesel character, retargets the completed action pose through Unreal IK Retargeter, and adds seven full-body keyframe sequences. Climbing now explicitly probes a selected grip, waits for Space, leaps along a swept arc and recovers in a secure catch. This input model supersedes the first upgrade's automatic held-direction chaining. Setup, provenance and coverage are recorded in [WALL_CLIMB.md](WALL_CLIMB.md); the current regression results are in [runtime-test.txt](runtime-test.txt).
+
 ## Remaining coverage and next work
 
-Game Animation Sample is optional expanded content, not a prerequisite for the installed Motion Matching system. It has not been downloaded or migrated. Dedicated start/stop and pivot coverage, authored climbing/reaching and varied landing clips remain future work.
+Game Animation Sample is optional expanded content, not a prerequisite for the installed Motion Matching system. It has not been downloaded or migrated. Dedicated start/stop and pivot coverage, imported climbing motion capture and varied landing clips remain future work.
 
 1. Expand compatible authored movement/traversal coverage from the free sample or other licensed clips, preserving skeleton and dependency restoration.
 2. Tune selection and transitions against those clips; use Motion Warping only for traversal sequences with compatible authored root motion.
