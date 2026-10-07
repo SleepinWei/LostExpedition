@@ -25,15 +25,15 @@ void AExpeditionGameMode::CaptureWallClimbFrame() {
         if(F==110)P->Forward(1);
         if(F==132){P->JumpOrClimb();P->Forward(0);}
         if(F==148){P->MoveWallGrip(0,1);P->JumpOrClimb();}
-        if(F==368){P->MoveWallGrip(0,1);P->JumpOrClimb();}
+        if(F==348){P->MoveWallGrip(0,1);P->JumpOrClimb();}
         if(F==300) {
             P->Drop();P->Traversal=ETraversalState::Clinging;P->CurrentGrip=P->TargetGrip=8;P->bGroundProbe=false;
             P->Ledge=ExpeditionTower::Grip(8);P->WallNormal=ExpeditionTower::WallNormal;P->SetActorLocation(ExpeditionTower::HangPosition(8));P->SetActorRotation(FRotator::ZeroRotator);P->GetCharacterMovement()->SetMovementMode(MOVE_Flying);
             for(int32 I=0;I<2;I++)P->PlantedFeet[I]=P->FindWallFoot(P->GetActorLocation(),I);
             CastChecked<UExplorerPoseComponent>(P->ClimbPose)->ResetTransition();P->CharacterVisual->ResetSmoothing();
         }
-        if(F==340)P->Right(1);
-        if(F==352){P->JumpOrClimb();P->Right(0);}
+        if(F==318)P->Right(1);
+        if(F==332){P->JumpOrClimb();P->Right(0);}
         P->Tick(1.f/60);P->GetMesh()->TickAnimation(1.f/60,false);P->GetMesh()->RefreshBoneTransforms();P->UpdateClimbPose();
         const FVector Center=P->CharacterVisual->GetBoneLocationByName(TEXT("mixamorig_Hips"),EBoneSpaces::WorldSpace)+FVector(0,0,28);
         const FVector Offset(-320,-240,70);AnimationReviewCamera->SetActorLocation(Center+Offset);AnimationReviewCamera->SetActorRotation((-Offset).Rotation());

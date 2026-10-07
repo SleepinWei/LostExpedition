@@ -1,4 +1,5 @@
 #include "ExplorerCharacter.h"
+#include "ExplorerClimbMotion.h"
 #include "ExpeditionTower.h"
 #include "Components/PoseableMeshComponent.h"
 #include "ExplorerPoseComponent.h"
@@ -44,7 +45,7 @@ AExplorerCharacter::AExplorerCharacter() {
     CharacterVisual->SetSkinnedAssetAndUpdate(LoadObject<USkeletalMesh>(nullptr,TEXT("/Game/Explorer/Character/Explorer/SkeletalMeshes/SK_Diesel")));
     CharacterVisual->SetRelativeTransform(GetMesh()->GetRelativeTransform());CharacterVisual->SetRelativeScale3D(FVector(.86f));
     CharacterVisual->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-    for(const TCHAR* Name:{TEXT("Probe_Ground"),TEXT("Probe_Left"),TEXT("Probe_Right"),TEXT("Jump_Left"),TEXT("Jump_Right"),TEXT("Catch"),TEXT("Hang")})
+    for(const TCHAR* Name:{TEXT("Probe_Ground"),TEXT("Probe_Left"),TEXT("Probe_Right"),TEXT("Jump_Left"),TEXT("Jump_Right"),TEXT("Catch"),TEXT("Hang"),TEXT("Jump_Ground")})
         WallClimbAnimations.Add(LoadObject<UAnimSequence>(nullptr,*(FString(TEXT("/Game/Animation/WallClimb/AS_"))+Name)));
     WeaponIdleAnimations={LoadObject<UAnimSequence>(nullptr,TEXT("/Game/Characters/Mannequins/Anims/Pistol/MF_Pistol_Idle_ADS")),LoadObject<UAnimSequence>(nullptr,TEXT("/Game/Characters/Mannequins/Anims/Rifle/MF_Rifle_Idle_ADS"))};
     WeaponFireAnimations={LoadObject<UAnimSequence>(nullptr,TEXT("/Game/Characters/Mannequins/Anims/Pistol/MM_Pistol_Fire")),LoadObject<UAnimSequence>(nullptr,TEXT("/Game/Characters/Mannequins/Anims/Rifle/MM_Rifle_Fire"))};
@@ -336,7 +337,7 @@ bool AExplorerCharacter::StartGripTransfer(int32 Candidate) {
     if(GetWorld()->SweepSingleByChannel(Hit,GetActorLocation(),ExpeditionTower::HangPosition(Candidate),FQuat::Identity,ECC_Pawn,FCollisionShape::MakeCapsule(38,94),Query)) {
         bProbeJumpRequested=false;Notify(TEXT("The next handhold is obstructed"));return false;
     }
-    BeginGrabAnimation();for(int32 I=0;I<2;I++){GrabFeet[I]=PlantedFeet[I];TransferFeet[I]=FindWallFoot(ExpeditionTower::HangPosition(Candidate),I);}ReachDuration=FMath::Clamp(FVector::Dist(GetActorLocation(),ExpeditionTower::HangPosition(Candidate))/230.f,.60f,GripTransferDuration);
+    BeginGrabAnimation();for(int32 I=0;I<2;I++){GrabFeet[I]=PlantedFeet[I];TransferFeet[I]=FindWallFoot(ExpeditionTower::HangPosition(Candidate),I);}ReachDuration=FMath::Clamp(FVector::Dist(GetActorLocation(),ExpeditionTower::HangPosition(Candidate))/200.f,.88f,GripTransferDuration);
     bEnteringFromRoof=false;TargetGrip=Candidate;ReachStart=GetActorLocation();ReachTime=0;Traversal=ETraversalState::GripJump;TraversalVelocity=FVector::ZeroVector;bProbeJumpRequested=false;
     StopFire();bReloading=false;return true;
 }
@@ -369,11 +370,11 @@ void AExplorerCharacter::UpdateTraversal(float DT) {
     if(Traversal==ETraversalState::GripJump) {
         const float Step=FMath::Min(Remaining,FMath::Max(0.f,ReachDuration-ReachTime));Remaining-=Step;ReachTime+=Step;
         const float T=FMath::Clamp(ReachTime/ReachDuration,0.f,1.f);
-        const FVector End=ExpeditionTower::HangPosition(TargetGrip),Arc=FVector::UpVector*24+WallNormal*7;
-        const float S=T*T*T*(T*(T*6-15)+10),Lift=64*FMath::Pow(T*(1-T),3);
-        const FVector Target=FMath::Lerp(ReachStart,End,S)+Arc*Lift;
+        const FVector End=ExpeditionTower::HangPosition(TargetGrip);
+        const FVector Target=ExplorerClimbMotion::Travel(ReachStart,End,WallNormal,T);
         FHitResult Hit;SetActorLocation(Target,true,&Hit);
-        TraversalVelocity=((End-ReachStart)*30*T*T*FMath::Square(1-T)+Arc*192*T*T*FMath::Square(1-T)*(1-2*T))/ReachDuration;
+        const float U=FMath::Clamp((T-.20f)/.80f,0.f,1.f);
+        TraversalVelocity=((End-ReachStart)*6*U*(1-U)+(FVector::UpVector*32+WallNormal*16)*32*U*(1-U)*(1-2*U))/(ReachDuration*.80f);
         if(Hit.bBlockingHit){Drop();Notify(TEXT("Reach interrupted / falling"));}
         else if(T>=1) {
             for(int32 I=0;I<2;I++)PlantedFeet[I]=TransferFeet[I];

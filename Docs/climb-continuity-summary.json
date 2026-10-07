@@ -1,23 +1,31 @@
 {
-  "date": "2026-10-07",
+  "date": "2026-10-08",
   "engine": "Unreal Engine 5.8.3 / Mac Development",
-  "scope": "13 visible Diesel joints, 3 repeatable scenarios, 180 frames each at 60 Hz. Vertical, lateral, and interrupted probe direction, with one buffered leap. Max step includes legitimate fast movement; these metrics are not an artistic-quality or hardware frame-rate score.",
-  "baseline_commit": "3565db3084e1c3d2265bc9c9023461104436edb1",
+  "scope": "13 visible Diesel joints; 3 input scenarios, 180 frames each at 60 Hz. Vertical, lateral and interrupted probe with one buffered leap. The input schedule is unchanged; new leaps have longer anticipation/flight, so phases occupy different frames. These measurements do not certify artistic quality or hardware frame rate.",
+  "baseline_commit": "18e0200f98291260234d87135f156e4c5ba723e7",
   "before": {
-    "max_joint_step_cm": 41.9643,
-    "max_joint_rotation_degrees": 101.7296,
-    "probe_direction_change_max_step_cm": 41.9643,
-    "planted_foot_max_step_cm": 35.2269
-  },
-  "after": {
     "max_joint_step_cm": 11.0198,
     "max_joint_rotation_degrees": 19.3423,
     "probe_direction_change_max_step_cm": 0.0861,
     "planted_foot_max_step_cm": 0.0
   },
-  "after_max_state_boundary_step_cm": 1.91,
-  "runtime_checks": 117,
+  "after": {
+    "max_joint_step_cm": 11.4642,
+    "max_joint_rotation_degrees": 14.6795,
+    "probe_direction_change_max_step_cm": 0.3325,
+    "planted_foot_max_step_cm": 0.0
+  },
+  "after_max_state_boundary_step_cm": 2.251,
+  "runtime_checks": 121,
   "failures": 0,
+  "jump_performance": {
+    "preload_pelvis_drop_cm": 4.957,
+    "four_contacts_zero_frames_at_60_hz": 14,
+    "unconstrained_seconds": 0.23333333333333334,
+    "free_hand_travel_relative_to_capsule_cm": 24.447,
+    "free_foot_travel_relative_to_capsule_cm": 26.504,
+    "anatomical_hand_sides_pass": true
+  },
   "secure_hand_error_cm": 0.0,
   "secure_foot_error_cm": 0.0,
   "capsule_30_120_hz_difference_cm": 0.0,

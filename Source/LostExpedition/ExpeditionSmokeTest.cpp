@@ -123,9 +123,9 @@ void AExplorerCharacter::RunSmokeTest() {
     Check(GetActorLocation().Equals(GroundStart,.01f)&&Traversal==ETraversalState::Probing,TEXT("Ground probing never teleports the capsule or automatically jumps"));
     Check(CharacterVisual->GetCharacterMesh()&&CharacterVisual->IsVisible()&&!ClimbPose->IsVisible()&&!GetMesh()->IsVisible()&&CharacterVisual->IsRetargetReady(),TEXT("The clothed Diesel character is visible and uses the runtime IK retargeter"));
     Check(CharacterVisual->GetBoneLocationByName(TEXT("mixamorig_Hips"),EBoneSpaces::WorldSpace).Z>GetActorLocation().Z-20,TEXT("Retargeting preserves pelvis height instead of replacing it with the ground root"));
-    bool ClipsReady=WallClimbAnimations.Num()==7;
+    bool ClipsReady=WallClimbAnimations.Num()==8;
     for(auto Clip:WallClimbAnimations)ClipsReady=ClipsReady&&Clip&&Clip->GetPlayLength()>.2f;
-    Check(ClipsReady,TEXT("Seven full body sequences cover ground reach, mirrored probe/leap, catch and hang"));
+    Check(ClipsReady,TEXT("Eight full body sequences cover ground reach/leap, mirrored wall probe/leap, catch and hang"));
     Check(!BeginMantle(),TEXT("The exploratory reach cannot top out"));
     JumpOrClimb();Check(Traversal==ETraversalState::GripJump,TEXT("Space explicitly launches the jump-to-grab stage"));
     Advance(ReachDuration+.03f);Check(Traversal==ETraversalState::Catching,TEXT("Landing on a handhold enters the secure catch animation"));
@@ -173,6 +173,35 @@ void AExplorerCharacter::RunSmokeTest() {
     Check(MaxBoundaryStep<3,TEXT("Probe, leap, catch and buffered transitions stay below three centimetres per boundary frame"));
     Check(MaxPlantedFootStep<.2f,TEXT("Planted boots drift less than two millimetres per frame while probing"));
     UE_LOG(LogTemp,Display,TEXT("CLIMB_CONTINUITY probeRetargetStep=%.4f plantedFootStep=%.4f"),MaxRetargetStep,MaxPlantedFootStep);
+    // A smooth capsule path alone is not a jump. Require a visible preload,
+    // animated limb travel and an actual interval with all four contacts released.
+    ResetGrip(1);MoveWallGrip(0,1);Advance(.4f);
+    const float StartPelvis=CharacterVisual->GetBoneLocationByName(TEXT("mixamorig_Hips"),EBoneSpaces::WorldSpace).Z;
+    JumpOrClimb();
+    float LowestPelvis=StartPelvis,MaxFreeHandTravel=0,MaxFreeFootTravel=0;
+    int FreeFrames=0;bool AnatomicalSides=true;FVector FirstFreeHand,FirstFreeFoot;
+    for(int Frame=0;Frame<60;Frame++) {
+        Tick(1.f/60);GetMesh()->TickAnimation(1.f/60,false);GetMesh()->RefreshBoneTransforms();UpdateClimbPose();
+        if(Traversal!=ETraversalState::GripJump)continue;
+        const float T=ReachTime/ReachDuration;
+        if(T<.20f)LowestPelvis=FMath::Min(LowestPelvis,float(CharacterVisual->GetBoneLocationByName(TEXT("mixamorig_Hips"),EBoneSpaces::WorldSpace).Z));
+        if(HandContact[0]+HandContact[1]+FootContact[0]+FootContact[1]<.001f) {
+            const FVector Hand=CharacterVisual->GetBoneLocationByName(TEXT("mixamorig_RightHand"),EBoneSpaces::WorldSpace)-GetActorLocation();
+            const FVector Foot=CharacterVisual->GetBoneLocationByName(TEXT("mixamorig_LeftFoot"),EBoneSpaces::WorldSpace)-GetActorLocation();
+            for(int I=0;I<2;I++) {
+                const FVector Wrist=CharacterVisual->GetBoneLocationByName(I==0?TEXT("mixamorig_LeftHand"):TEXT("mixamorig_RightHand"),EBoneSpaces::WorldSpace);
+                AnatomicalSides=AnatomicalSides&&FVector::DotProduct(Wrist-GetActorLocation(),GetActorRightVector())*(I==0?-1:1)>0;
+            }
+            if(FreeFrames++==0){FirstFreeHand=Hand;FirstFreeFoot=Foot;}
+            MaxFreeHandTravel=FMath::Max(MaxFreeHandTravel,float(FVector::Dist(Hand,FirstFreeHand)));
+            MaxFreeFootTravel=FMath::Max(MaxFreeFootTravel,float(FVector::Dist(Foot,FirstFreeFoot)));
+        }
+    }
+    UE_LOG(LogTemp,Display,TEXT("CLIMB_PERFORMANCE preload=%.3f freeFrames=%d armSwing=%.3f legSwing=%.3f"),StartPelvis-LowestPelvis,FreeFrames,MaxFreeHandTravel,MaxFreeFootTravel);
+    Check(StartPelvis-LowestPelvis>2,TEXT("Wall jump visibly lowers the pelvis before push-off"));
+    Check(FreeFrames>=12,TEXT("Wall jump releases all four contact constraints for at least 0.2 seconds"));
+    Check(MaxFreeHandTravel>12&&MaxFreeFootTravel>12,TEXT("Unconstrained flight contains arm swing and leg tuck beyond capsule translation"));
+    Check(AnatomicalSides,TEXT("Free-flight hands remain on their anatomical sides after retargeting"));
     ResetGrip(0);
     auto* Obstacle=GetWorld()->SpawnActor<AActor>();auto* Box=NewObject<UBoxComponent>(Obstacle);Obstacle->SetRootComponent(Box);Box->SetBoxExtent(FVector(45,55,45));Box->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);Box->SetCollisionResponseToAllChannels(ECR_Block);Box->RegisterComponent();Obstacle->SetActorLocation(ExpeditionTower::HangPosition(1));
     Check(!MoveWallGrip(0,1),TEXT("An obstructed handhold cannot be selected for a reach"));Obstacle->Destroy();

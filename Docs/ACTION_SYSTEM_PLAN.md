@@ -66,7 +66,7 @@ Generation, runtime verification, capture workflow and precise coverage are reco
 
 ## Three-stage wall climbing and clothed hero implemented
 
-The latest upgrade replaces the visible mannequin with the CC0 Diesel character, retargets the completed action pose through Unreal IK Retargeter, and adds seven full-body keyframe sequences. Climbing now explicitly probes a selected grip, waits for Space, leaps along a swept arc and recovers in a secure catch. This input model supersedes the first upgrade's automatic held-direction chaining. Setup, provenance and coverage are recorded in [WALL_CLIMB.md](WALL_CLIMB.md); the current regression results are in [runtime-test.txt](runtime-test.txt).
+The first character upgrade replaced the visible mannequin with the CC0 Diesel character, retargets the completed action pose through Unreal IK Retargeter, and adds seven full-body keyframe sequences. Climbing now explicitly probes a selected grip, waits for Space, leaps along a swept arc and recovers in a secure catch. This input model supersedes the first upgrade's automatic held-direction chaining. Setup, provenance and coverage are recorded in [WALL_CLIMB.md](WALL_CLIMB.md); the current regression results are in [runtime-test.txt](runtime-test.txt).
 
 ## Remaining coverage and next work
 
@@ -79,4 +79,8 @@ Game Animation Sample is optional expanded content, not a prerequisite for the i
 Rope traversal, physical secondary animation, sound and cinematic polish remain later work. This is a functioning prototype with Motion Matching, not a claim of Uncharted's production animation quality.
 
 
-The continuity rebuild replaces runtime stage-clip swapping with a shared base pose, persistent pre-contact pose springs on both rigs, fixed support feet and continuous probe/transfer/catch curves. Interrupted probes now start from the displayed hands. See [WALL_CLIMB.md](WALL_CLIMB.md) and [climb-continuity-summary.json](climb-continuity-summary.json) for measured results and the full-rate review.
+The earlier continuity rebuild replaced runtime stage-clip swapping with a shared base pose, persistent pre-contact pose springs on both rigs, fixed support feet and continuous probe/transfer/catch curves. Interrupted probes now start from the displayed hands. See [WALL_CLIMB.md](WALL_CLIMB.md) and [climb-continuity-summary.json](climb-continuity-summary.json) for measured results and the full-rate review.
+
+## Full-body leap correction
+
+The shared static hanging pose did not provide a readable jump. Runtime now samples eight full-body actions with preload, extension, free flight and catch. Contact IK runs once after retargeting and releases during flight. Baking fixes the mannequin mesh-space left/right and pitch axes. Final validation also measures actual limb motion relative to the capsule, not only route success and positional continuity. See [WALL_CLIMB.md](WALL_CLIMB.md) for current implementation, limits and research references.

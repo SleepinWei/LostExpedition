@@ -41,14 +41,14 @@ public:
     void SprintStart(); void SprintStop(); void Pistol(); void Rifle(); void Journal(); void FreshStart();
     bool TryLedge(const FVector& At, const FVector& Direction, FVector& Edge, FVector& Normal) const;
     bool BeginWallGrip(); bool MoveWallGrip(float Horizontal,float Vertical); void UpdateClimbPose();
-    static constexpr float GripTransferDuration=.76f, RoofEntryDuration=1.10f, MantleDuration=1.10f;
+    static constexpr float GripTransferDuration=.96f, RoofEntryDuration=1.10f, MantleDuration=1.10f;
     static constexpr float ProbeMinimumTime=.16f, CatchDuration=.22f;
     float ProbeTime=0, CatchTime=0;
     bool bGroundProbe=false, bProbeJumpRequested=false, bBufferedGripJump=false;
     bool ProbeGrip(int32 Candidate);
     void UpdateCharacterVisual();
     UPROPERTY(VisibleAnywhere) TObjectPtr<class UExplorerVisualComponent> CharacterVisual;
-    // Ground probe, left/right wall probe, left/right leap, secure catch, hanging idle.
+    // Ground probe, left/right wall probe, left/right leap, catch, hang, ground leap.
     UPROPERTY() TArray<TObjectPtr<class UAnimSequence>> WallClimbAnimations;
     int32 CurrentGrip=-1, TargetGrip=-1;
     float ReachTime=0, GripCooldown=0;
@@ -62,6 +62,9 @@ public:
     float PreviousFireAnimationTime=-1,FireBlendTime=1;
     FVector GrabHands[2],GrabFeet[2],AnimatedHands[2],AnimatedFeet[2];
     FVector PlantedFeet[2],TransferFeet[2];
+    // Final contact weights are exposed for runtime verification. Zero means pure animation.
+    float HandContact[2]={1,1},FootContact[2]={1,1};
+    float HandPlant[2]={1,1};
     FVector FindWallFoot(const FVector& Body,int32 Index) const;
     UPROPERTY() TArray<TObjectPtr<class UAnimSequence>> WeaponIdleAnimations;
     UPROPERTY() TArray<TObjectPtr<class UAnimSequence>> WeaponFireAnimations;
@@ -104,6 +107,7 @@ private:
     float ForwardInput=0, RightInput=0;
     float LastVisualAnimationClock=-1,LastSourceIKClock=-1;
     FVector SourceKneeBend[2]={FVector::ZeroVector,FVector::ZeroVector};
+    FVector VisualElbowBend[2]={FVector::ZeroVector,FVector::ZeroVector};
     FVector VisualKneeBend[2]={FVector::ZeroVector,FVector::ZeroVector};
     FQuat VisualWrist[2]={FQuat::Identity,FQuat::Identity};
     float VisualCurl[2]={0,0};

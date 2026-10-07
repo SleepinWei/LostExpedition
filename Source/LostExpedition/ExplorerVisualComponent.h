@@ -6,8 +6,8 @@
 
 struct FExplorerRetargetState;
 
-// Retarget the finished locomotion / weapon / traversal pose to the clothed hero.
-// Keeping retargeting last also carries the exact wall contacts through the rig change.
+// Retarget locomotion, weapon layers and authored traversal performance.
+// The visible rig owns the final wall-contact solve; free flight preserves the animation.
 UCLASS()
 class LOSTEXPEDITION_API UExplorerVisualComponent : public UPoseableMeshComponent {
     GENERATED_BODY()

@@ -67,7 +67,7 @@ python3 Scripts/restore_engine_assets.py --engine "/Users/Shared/Epic Games/UE_5
 | `/Game/Characters/Mannequins/Anims/{Pistol,Rifle}/MM_{Pistol,Rifle}_Equip` | 非叠加拔枪动作 |
 | `/Game/Characters/Mannequins/Anims/{Pistol,Rifle}/{Walk,Jog}/MF_*` | 各武器八方向步行与慢跑，共 32 个序列 |
 
-`restore_engine_assets.py` 已包含这些序列及其骨骼依赖。攀爬的七个全身关键帧动作由 `ExplorerAnimation.cpp` 的编辑器构建函数生成 `AnimSequence`，运行时再按墙面修正手脚接触；无需下载付费动作包。压缩 GIF 是本工程实机动作捕获，源帧不上传。
+`restore_engine_assets.py` 已包含这些序列及其骨骼依赖。攀爬的八个全身关键帧动作由 `ExplorerAnimation.cpp` 的编辑器构建函数生成 `AnimSequence`，运行时再按墙面修正手脚接触；无需下载付费动作包。压缩 GIF 是本工程实机动作捕获，源帧不上传。
 
 `Scripts/inspect_action_upgrade_assets.py` 可在 Unreal 中检查本地动作长度、叠加类型、根运动设置与骨骼依赖。
 
@@ -85,7 +85,7 @@ python3 Scripts/restore_engine_assets.py --engine "/Users/Shared/Epic Games/UE_5
 Scripts/SetupExplorer.command /absolute/path/to/Diesel.glb
 ```
 
-脚本合并身体、服装、靴子、头发和面部网格，保留嵌入贴图及蒙皮；生成官方 IK Retargeter，将已有 Motion Matching、武器和攀爬动作重定向到人物。Mixamo 的根节点与骨盆为同一骨骼，因此禁用根运动重映射，避免覆盖骨盆高度。随后生成 `/Game/Animation/WallClimb/` 下的七个全身动作。`ArtSource/Characters/` 和所有导入/生成的 Content 资源只保留本地，代码与来源链接提交 Git。具体阶段、资源路径及限制见 [WALL_CLIMB.md](WALL_CLIMB.md)。
+脚本合并身体、服装、靴子、头发和面部网格，保留嵌入贴图及蒙皮；生成官方 IK Retargeter，将已有 Motion Matching、武器和攀爬动作重定向到人物。Mixamo 的根节点与骨盆为同一骨骼，因此禁用根运动重映射，避免覆盖骨盆高度。随后生成 `/Game/Animation/WallClimb/` 下的八个全身动作。`ArtSource/Characters/` 和所有导入/生成的 Content 资源只保留本地，代码与来源链接提交 Git。具体阶段、资源路径及限制见 [WALL_CLIMB.md](WALL_CLIMB.md)。
 
 ## 恢复步骤
 

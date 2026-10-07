@@ -32,7 +32,7 @@ UE 5.8.3 原生 C++ 第三人称冒险原型。当前关卡为热带海岛：低
 
 可见人物已替换为免费 CC0 的 **Diesel**，有面部、外套、长裤和靴子。原有地面 Motion Matching 与开火动作通过 Unreal 官方 IK Retargeter 重定向到他自己的骨骼。
 
-爬墙分为 **伸手试探 → 空格起跳抓取 → 最终抓稳** 三个有全身动画的阶段。WASD 选择下一个把手，试探时身体保持支撑；空格才起跳，抓到后身体下沉缓冲、膝盖蹬墙，再恢复悬挂。三个阶段现已共用连续的全身姿态：试探时锁定脚部支点，改变方向从当前可见手部继续伸出，身体先经过连续缓冲，再由 IK 修正接触。源骨架与模型重定向后各有独立姿态过渡，避免切换动作时重新覆盖人物。详见[三阶段攀爬与人物恢复说明](Docs/WALL_CLIMB.md)。
+爬墙分为 **伸手试探 → 空格起跳抓取 → 最终抓稳**。八条全身动作覆盖下沉蓄力、蹬伸、腾空摆臂与收腿、落手缓冲；腾空时解除墙面接触约束，接近目标后逐步抓住、落脚。可见人物只执行一次最终接触 IK，避免源骨架与重定向后的约束互相干扰。当前使用原创关键帧原型动作，尚未导入专业攀爬动捕。详见[攀爬实现与恢复说明](Docs/WALL_CLIMB.md)。
 ![着装人物的伸手试探、空格起跳和抓稳动画](Docs/Images/climbing-animation.gif)
 
 [观看完整 60 帧攀爬回放](Docs/Images/wall-climb-60fps.mp4)。这是 Unreal 固定步长渲染，不能代表设备实时帧率。
@@ -52,7 +52,7 @@ UE 5.8.3 原生 C++ 第三人称冒险原型。当前关卡为热带海岛：低
 - `Scripts/PlayTower.command`：直接到残塔下体验石把手攀爬，不清除存档。
 - `Scripts/Build.command`：编译编辑器模块。
 - `Scripts/SetupMotionMatching.command`：生成 Pose Search 数据库与编译后的动画蓝图。
-- `Scripts/SetupExplorer.command`：导入着装人物，生成 IK 重定向资源和七个攀爬动画。
+- `Scripts/SetupExplorer.command`：导入着装人物，生成 IK 重定向资源和八个攀爬动画。
 - `Scripts/WallClimbReview.command`：捕获伸手、空格起跳和抓稳三个阶段。
 - `Scripts/MotionMatchingReview.command`：捕获实际匹配的移动与战斗。
 - `Scripts/SmokeTest.command`：运行真实游戏世界中的检查。
@@ -106,7 +106,7 @@ Mac 脚本默认使用 `/Users/Shared/Epic Games/UE_5.8`。其他平台使用对
 - `ExplorerPoseComponent.cpp`：在行走骨骼更新后计算可见动作姿态。
 - `Scripts/create_island_materials.py`：沙滩/岩壁混合、浅海、浪花与丛林材质。
 
-当前 **117 项检查通过，0 失败**。运行结果见[测试报告](Docs/runtime-test.txt)，覆盖沙滩至塔下路线、全部 23 把手、三阶段动作、空格确认与单次指令缓存、地面试探取消、移动障碍中断、30/60/120 Hz 跳跃路径、着装人物的骨盆与墙面手脚接触、登顶下攀、地面 Motion Matching、武器动作、道具和存档。新克隆恢复素材后应重新运行检查。
+当前 **121 项检查通过，0 失败**。运行结果见[测试报告](Docs/runtime-test.txt)，覆盖沙滩至塔下路线、全部 23 把手、三阶段动作、空格确认与单次指令缓存、地面试探取消、移动障碍中断、30/60/120 Hz 跳跃路径、着装人物的骨盆与墙面手脚接触、登顶下攀、地面 Motion Matching、武器动作、道具和存档。新克隆恢复素材后应重新运行检查。
 
 本机预览为 `Docs/island-overview.png`、`island-beach.png`、`island-tower.png` 和 `island-grips.png`。编辑器启动时执行 `Scripts/editor_view.py` 并增加 `-AdventureCapture -AdventureCaptureExit` 可重新生成。`-WatchtowerVisualReview` 会进入真实抓边状态，生成 `Docs/tower-gameplay.png` 后退出。
 
@@ -114,4 +114,4 @@ Git 中仅包含 `Docs/Images/` 下的压缩预览副本。
 
 `Scripts/WallClimbReview.command` 以 60 Hz 动画步长捕获 480 帧三阶段动作到 `Docs/WallClimbFrames/`；使用安装了 Pillow 的 Python 运行 `Scripts/assemble_animation_previews.py --wall-climb-only` 生成 README 动图。`Scripts/AnimationReview.command` 捕获武器与完整攀爬回放；原始帧保留在本地。单帧跳变、关节旋转和改方向的前后对比见[连续性报告](Docs/climb-continuity-summary.json)。
 
-当前仍是单人冒险原型。可见角色为 Diesel。爬墙使用共用悬挂基础姿态、连续的程序化阶段曲线和接触 IK，尚无导入的正式动捕攀爬。地面移动已接入真实 Motion Matching / Pose Search：徒手、手枪、步枪三个数据库，共 51 个官方模板动作、2,910 个索引姿态。起停和急转仍需专门的正式动作扩充；根运动 Motion Warping 尚未启用，Game Animation Sample 尚未导入。绳索摆荡、声音与电影演出仍未实现。资源来源见 [素材说明](Docs/ASSETS.md)。
+当前仍是单人冒险原型。可见角色为 Diesel。爬墙使用完整关键帧动作与随阶段变化的接触 IK，尚无导入的正式动捕攀爬。地面移动已接入真实 Motion Matching / Pose Search：徒手、手枪、步枪三个数据库，共 51 个官方模板动作、2,910 个索引姿态。起停和急转仍需专门的正式动作扩充；根运动 Motion Warping 尚未启用，Game Animation Sample 尚未导入。绳索摆荡、声音与电影演出仍未实现。资源来源见 [素材说明](Docs/ASSETS.md)。

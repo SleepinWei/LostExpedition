@@ -1,31 +1,32 @@
 # Three-stage wall climbing
 
-The clothed **Diesel** character now presents the complete action pose. Manny remains a hidden animation source for ground Motion Matching, weapon clips and authored wall sequences. Unreal's runtime IK Retargeter converts that finished pose to Diesel's Mixamo rig; final contact correction aligns hands/feet and the weapon with the different body proportions.
+The visible **Diesel** character uses ground Motion Matching and weapon animation through Unreal's runtime IK Retargeter. Climbing now samples complete action sequences before retargeting, with **one final wall-contact solve on the visible rig**. The hidden source skeleton no longer solves the same contacts first.
 
-| Stage | Input and behavior | Animation |
+| Stage | Input | Performance |
 | --- | --- | --- |
-| Exploratory reach | Approach the first grip or press E. On the wall, WASD selects an adjacent grip. The capsule stays at its current support. | Ground reach or mirrored left/right probe; torso/neck turn, leading arm extension and partially open fingers |
-| Jump to grab | Space commits the selected grip. Early presses retain at least 0.16 s of anticipation. | Mirrored full-body leap, push-off, tucked legs, reaching arms and closing fingers; capsule follows a swept arc |
-| Secure catch | Contact automatically enters a 0.22 s recovery before another leap. | Two-hand catch, torso compression, knee bracing and recovery to hanging idle |
+| Reach / probe | Approach or E; WASD selects an adjacent hold | Feet stay planted; the supporting arm holds the current ledge while the free hand explores |
+| Jump / grab | Space, with 0.16 s minimum probe time | Load the legs, push off, release the wall, swing the arms and tuck a leg, then reach for the destination |
+| Secure catch | Automatic, 0.22 s | Hands engage in sequence, boots brace, torso absorbs and returns to hanging |
 
-Holding direction selects another grip after a catch and waits for Space. A single Space press during flight can queue one next leap. At the final hold, Space tops out. Ctrl drops from the wall or cancels a standing probe; opening the journal cancels an uncommitted probe. Newly obstructed flight paths restore falling rather than passing through geometry. Roof entry continues to route the capsule over the parapet before lowering it onto the highest hold.
+A jump lasts 0.88–0.96 s depending on distance. The collision capsule stays at its takeoff position for the first 20% while the skeleton anticipates, then follows a swept arc. Holding direction selects the next grip but waits for Space; one Space during flight queues one additional leap. Ctrl drops/cancels. Journal cancels an uncommitted probe. Obstacles interrupt the flight and restore gravity. The final hold supports mantling and reverse entry over the parapet.
 
-The runtime uses `AS_Hang` as one shared authored base. Continuous quintic reach curves, push-off, torso weight transfer, catch absorption and asynchronous foot transfers produce all three stages. Seven generated sequences remain available as authoring references, but the runtime no longer swaps their incompatible root poses at stage boundaries. These are procedural prototype actions, not imported motion capture. Ground Motion Matching remains active; root-motion Motion Warping is not enabled.
+## What was wrong and what changed
 
-## Continuity rebuild
+The previous revision sampled `AS_Hang` at time zero throughout climbing. Moving the capsule and interpolating hand targets could pass route checks while still showing no full-body jump. Source and target IK both constrained the limbs, including during flight. The baked source poses also used reversed anatomical sides and the wrong pitch axis in mannequin mesh space; final contact IK concealed those errors until constraints were released.
 
-The earlier implementation passed gameplay checks but still snapped when a probe changed direction. A repeatable 60 Hz input trace recorded a **41.964 cm** visible-joint step and a **101.730 degree** joint rotation in one frame. Functional success did not establish animation quality.
+- Eight sequences now run at their actual phase: ground probe, left/right probe, left/right leap, catch, hang and a separate ground leap. Leap keys include preload, extension, asymmetric arm swing/leg tuck, reach and absorption. C1 key curves are baked at 60 Hz. Mesh-space +Y is forward and +X is anatomical left.
+- `ExplorerClimbMotion.h` shares timing between collision travel and contact envelopes. Four contact weights become zero during flight. At zero weight the retargeted action animation is preserved; IK returns gradually near the destination.
+- End-effector position and bend plane blend geometrically towards the contact solution. Blending complete solved joint quaternions had rotated knees through a large arc despite nearby foot positions. Persistent bend planes constrain elbow/pole flips.
+- Wrist orientation follows the release/arrival curve. A free palm faces the wall and closes onto the stone at catch. The runtime arm solve uses a fixed extension reserve. Re-applying a nonlinear soft-reach correction to an already-corrected, captured wrist point caused an elbow step on direction changes and is removed.
+- During an interrupted probe, the displayed hand positions are captured and root support remains on the original ledge. Planted boots are world-space contacts. Pose springs act before final contact correction rather than repeatedly smoothing an already-constrained pose.
 
-- Capture the displayed rig's hand/foot positions whenever a new probe or transfer starts. Interrupted reaches continue from those positions, including when the lead hand changes.
-- Keep one persistent critically damped **pre-contact** pose for the source skeleton and one after retargeting. Final IK is never fed back into the spring; doing that caused repeated body corrections. Preserve the exit into ground locomotion as well.
-- Lock support boots in world space. Trace new foot targets once at jump commitment. Move the hands before the body overtakes them, then transfer the feet separately on outward arcs that clear the protruding stone rails.
-- An exploratory free hand cannot drag the torso away from its supporting hand. Visible hands target the contact plan directly instead of chasing an already-clamped source wrist.
-- Use curves with zero endpoint velocity/acceleration for capsule transfer and endpoint velocity for limb arcs. Smooth wrist orientation/finger closure and use soft leg extension during flight to avoid knee locking. Persistent knee bend planes prevent pole-vector flips; foot targets leave enough bend for the actual character proportions.
-- Shorten anticipation/catch recovery to 0.16/0.22 s and carry unused catch time into the next stage. One buffered Space still commits only one additional grip.
+These are original program-authored keyframe animations, **not imported climbing motion capture**. Ground Motion Matching remains active. Root-motion Motion Warping, a general surface reach-ring selector and physics secondary motion are not implemented. The current stylized Diesel rig has short arms; a realistic character and a broader authored/mocap library remain relevant to matching the target art quality. Passing the regression suite does not certify animation quality.
 
-The rebuilt trace measures **0.0861 cm** maximum step on probe direction changes (previously 41.9643 cm) and **19.342 degrees** maximum joint rotation per frame (previously 101.7296 degrees). Maximum action-boundary step is **1.910 cm**. These results cover the scripted scenarios, not every possible input or pose.
+## Research used
 
-The runtime suite samples 13 visible joints across vertical, horizontal and interrupted-direction traces. It checks probe retarget continuity, action-boundary displacement, angular steps, planted boots and 30/120 Hz visible pelvis agreement. Raw CSV traces stay local; [the small summary](climb-continuity-summary.json) records scope and results. The [60 fps video](Images/wall-climb-60fps.mp4) contains actual engine renders of ground entry, buffered vertical transfers, a deliberate cut to a high horizontal hold, and horizontal-to-vertical chaining. Its fixed simulation timestep does not measure hardware performance.
+[Naughty Dog's official climbing breakdown](https://www.naughtydog.com/blog/uncharted_4_climbing_legacy_of_thieves_collection_pc) describes extensive authored/mocap coverage for reach combinations, meaningful support from the feet, and coordinated full-body IK. The implementation lesson here is to supply a readable performance first and reserve contact corrections for supported phases.
+
+The published GDC session descriptions cover [partial/additive layering and player control (2010)](https://www.gdcvault.com/play/1012451/Animation-and-Player-Control-in), [animation workflow/prototyping (2017)](https://www.gdcvault.com/play/1024309/Animation-Bootcamp-Uncharted-4-Naughty), and [physics layered over gameplay animation (2017)](https://gdcvault.com/play/1024087/Physics-Animation-in-Uncharted-4). The official article and session descriptions were reviewed; these links do not imply a full viewing of the talks or implementation of Naughty Dog's proprietary system.
 
 ## Character source and restoration
 
@@ -42,4 +43,8 @@ Generated assets, original downloads and raw capture frames are excluded from Gi
 
 ## Validation
 
-UE 5.8.3 Mac Development build succeeds; **117 runtime checks pass with zero failures**. The full tower route, horizontal transfers, descent, mantle and gameplay regressions pass. Fixed tests measure maximum secure-contact hand error at **0.000 cm**, foot error at **0.000 cm** (within the 8 cm acceptance limit), and 30/120 Hz capsule-path difference at **0.000 cm**; this applies to the tested poses, not every possible configuration or rendered frame rate. The setup script has been exercised from the downloaded GLB through both rig creation and all seven saved sequences. See [runtime-test.txt](runtime-test.txt), [explorer-character-setup.txt](explorer-character-setup.txt) and [wall-climb-setup.txt](wall-climb-setup.txt).
+UE 5.8.3 Mac Development builds successfully; **121 checks pass, zero failures**. The tested jump lowers the pelvis 4.957 cm before takeoff and has 14 unconstrained frames at 60 Hz. During that interval the hand and boot move 24.447/26.504 cm relative to the capsule. Maximum sampled joint rotation is 14.680 degrees per frame; interrupted-probe displacement is 0.3325 cm. These figures apply to the scripted cases only.
+
+See [runtime-test.txt](runtime-test.txt) and [climb-continuity-summary.json](climb-continuity-summary.json) for the latest build and runtime measurements. The suite measures 13 visible joints through vertical, horizontal and interrupted probes, plus preload, true unconstrained flight, arm/leg travel relative to the capsule and anatomical hand sides. It also checks all 23 holds, drop, blockers, descent, mantle, ground locomotion, weapons and items.
+
+The [60 fps review](Images/wall-climb-60fps.mp4) contains 480 actual Unreal frames, with a deliberate cut to the high horizontal route at frame 300. Simulation advances only after each screenshot completes. Fixed-timestep capture does not measure hardware performance; raw frames remain local.

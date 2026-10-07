@@ -1,8 +1,9 @@
-AS_Probe_Ground: 19 frames, 89 full body tracks
-AS_Probe_Left: 19 frames, 89 full body tracks
-AS_Probe_Right: 19 frames, 89 full body tracks
-AS_Jump_Left: 23 frames, 89 full body tracks
-AS_Jump_Right: 23 frames, 89 full body tracks
-AS_Catch: 11 frames, 89 full body tracks
-AS_Hang: 46 frames, 89 full body tracks
+AS_Probe_Ground: 37 frames, 89 full body tracks
+AS_Probe_Left: 37 frames, 89 full body tracks
+AS_Probe_Right: 37 frames, 89 full body tracks
+AS_Jump_Left: 61 frames, 89 full body tracks
+AS_Jump_Right: 61 frames, 89 full body tracks
+AS_Catch: 19 frames, 89 full body tracks
+AS_Hang: 61 frames, 89 full body tracks
+AS_Jump_Ground: 61 frames, 89 full body tracks
 WALL_CLIMB_SETUP_COMPLETE
