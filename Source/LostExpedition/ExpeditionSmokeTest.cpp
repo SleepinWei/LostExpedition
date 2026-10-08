@@ -178,8 +178,8 @@ void AExplorerCharacter::RunSmokeTest() {
     ResetGrip(1);MoveWallGrip(0,1);Advance(.4f);
     const float StartPelvis=CharacterVisual->GetBoneLocationByName(TEXT("mixamorig_Hips"),EBoneSpaces::WorldSpace).Z;
     JumpOrClimb();
-    float LowestPelvis=StartPelvis,MaxFreeHandTravel=0,MaxFreeFootTravel=0;
-    int FreeFrames=0;bool AnatomicalSides=true;FVector FirstFreeHand,FirstFreeFoot;
+    float LowestPelvis=StartPelvis,MaxFreeHandTravel=0,MaxFreeFootTravel=0,MaxFreeWristOverride=0;
+    int FreeFrames=0,FreeWristSamples=0;bool AnatomicalSides=true;FVector FirstFreeHand,FirstFreeFoot;
     for(int Frame=0;Frame<60;Frame++) {
         Tick(1.f/60);GetMesh()->TickAnimation(1.f/60,false);GetMesh()->RefreshBoneTransforms();UpdateClimbPose();
         if(Traversal!=ETraversalState::GripJump)continue;
@@ -189,6 +189,13 @@ void AExplorerCharacter::RunSmokeTest() {
             const FVector Hand=CharacterVisual->GetBoneLocationByName(TEXT("mixamorig_RightHand"),EBoneSpaces::WorldSpace)-GetActorLocation();
             const FVector Foot=CharacterVisual->GetBoneLocationByName(TEXT("mixamorig_LeftFoot"),EBoneSpaces::WorldSpace)-GetActorLocation();
             for(int I=0;I<2;I++) {
+                // Position/rotation curves share exact zero-contact intervals,
+                // but have different tiny nonzero weights near the endpoints.
+                if(HandContact[I]==0) {
+                    const FQuat WristRotation=CharacterVisual->GetBoneTransformByName(I==0?TEXT("mixamorig_LeftHand"):TEXT("mixamorig_RightHand"),EBoneSpaces::WorldSpace).GetRotation();
+                    MaxFreeWristOverride=FMath::Max(MaxFreeWristOverride,float(FMath::RadiansToDegrees(WristRotation.AngularDistance(UnconstrainedVisualWrist[I]))));
+                    FreeWristSamples++;
+                }
                 const FVector Wrist=CharacterVisual->GetBoneLocationByName(I==0?TEXT("mixamorig_LeftHand"):TEXT("mixamorig_RightHand"),EBoneSpaces::WorldSpace);
                 AnatomicalSides=AnatomicalSides&&FVector::DotProduct(Wrist-GetActorLocation(),GetActorRightVector())*(I==0?-1:1)>0;
             }
@@ -202,6 +209,8 @@ void AExplorerCharacter::RunSmokeTest() {
     Check(FreeFrames>=12,TEXT("Wall jump releases all four contact constraints for at least 0.2 seconds"));
     Check(MaxFreeHandTravel>12&&MaxFreeFootTravel>12,TEXT("Unconstrained flight contains arm swing and leg tuck beyond capsule translation"));
     Check(AnatomicalSides,TEXT("Free-flight hands remain on their anatomical sides after retargeting"));
+    Check(FreeWristSamples>=24&&MaxFreeWristOverride<.01f,TEXT("Zero-contact flight preserves both animated wrist rotations within 0.01 degrees"));
+    UE_LOG(LogTemp,Display,TEXT("CLIMB_FREE_WRIST samples=%d maxOverrideDegrees=%.6f"),FreeWristSamples,MaxFreeWristOverride);
     ResetGrip(0);
     auto* Obstacle=GetWorld()->SpawnActor<AActor>();auto* Box=NewObject<UBoxComponent>(Obstacle);Obstacle->SetRootComponent(Box);Box->SetBoxExtent(FVector(45,55,45));Box->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);Box->SetCollisionResponseToAllChannels(ECR_Block);Box->RegisterComponent();Obstacle->SetActorLocation(ExpeditionTower::HangPosition(1));
     Check(!MoveWallGrip(0,1),TEXT("An obstructed handhold cannot be selected for a reach"));Obstacle->Destroy();

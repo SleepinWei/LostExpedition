@@ -355,6 +355,7 @@ void AExplorerCharacter::UpdateCharacterVisual() {
     }
     CharacterVisual->SmoothWallPose(DeltaTime,Wall);
     for(int Index=0;Index<2;Index++) {
+        UnconstrainedVisualWrist[Index]=CharacterVisual->GetBoneTransformByName(Hand[Index],EBoneSpaces::WorldSpace).GetRotation();
         const FName SourceHand=Index==0?TEXT("hand_l"):TEXT("hand_r");
         const FVector Target=Wall?AnimatedHands[Index]:ClimbPose->GetBoneLocationByName(SourceHand,EBoneSpaces::WorldSpace);
         // Match source contact/weapon landmarks after proportions are retargeted.
@@ -362,16 +363,23 @@ void AExplorerCharacter::UpdateCharacterVisual() {
         if((Wall&&HandContact[Index]>.001f)||(!Wall&&ArmAnimationAlpha>.01f))SolveLimb(CharacterVisual,Upper[Index],Lower[Index],Hand[Index],Target,Elbow,0,Wall?&VisualElbowBend[Index]:nullptr,DeltaTime,Wall?HandContact[Index]:1,3);
         if(Wall&&FootContact[Index]>.001f)SolveLimb(CharacterVisual,Index==0?TEXT("mixamorig_LeftUpLeg"):TEXT("mixamorig_RightUpLeg"),Index==0?TEXT("mixamorig_LeftLeg"):TEXT("mixamorig_RightLeg"),Index==0?TEXT("mixamorig_LeftFoot"):TEXT("mixamorig_RightFoot"),AnimatedFeet[Index],Body-WallNormal*90+Side*(Index==0?-36:36)-FVector(0,0,20),0,&VisualKneeBend[Index],DeltaTime,FootContact[Index]);
         if(Wall) {
-            const float Weight=Traversal==ETraversalState::Mantling?1-Phase(.55f,1.f,MantleTime/MantleDuration):bGroundProbe&&Traversal==ETraversalState::Probing?Phase(0,.4f,ProbeTime)*.5f:Traversal==ETraversalState::GripJump?HandContact[Index]:1;
+            const float Weight=Traversal==ETraversalState::Mantling?1-Phase(.55f,1.f,MantleTime/MantleDuration):bGroundProbe&&Traversal==ETraversalState::Probing?Phase(0,.4f,ProbeTime)*.5f:Traversal==ETraversalState::GripJump?ExplorerClimbMotion::WristContact(ReachTime/ReachDuration,Index==(bLeadRight?1:0)):1;
             FTransform Wrist=CharacterVisual->GetBoneTransformByName(Hand[Index],EBoneSpaces::WorldSpace);
             // Diesel's fingers point along local Y; palm Z faces down onto the
             // stone's top surface. Flex around local X to hook the front edge.
             const FQuat Overhand=FRotationMatrix::MakeFromYZ(-WallNormal,-FVector::UpVector).ToQuat();
             if(!bVisualWasWall)VisualWrist[Index]=Wrist.GetRotation();
-            const FQuat AirPalm=FRotationMatrix::MakeFromYZ(FVector::UpVector,-WallNormal).ToQuat();
-            const FQuat Palm=Traversal==ETraversalState::GripJump?FQuat::Slerp(AirPalm,Overhand,HandContact[Index]):FQuat::Slerp(Wrist.GetRotation(),Overhand,Weight);
-            VisualWrist[Index]=FQuat::Slerp(VisualWrist[Index],Palm,1-FMath::Exp(-20*DeltaTime));
-            Wrist.SetRotation(VisualWrist[Index]);CharacterVisual->SetBoneTransformByName(Hand[Index],Wrist,EBoneSpaces::WorldSpace);
+            // Smooth only the contact target. Applying a fixed airborne palm
+            // overwrote the action even when every contact weight was zero.
+            VisualWrist[Index]=FQuat::Slerp(VisualWrist[Index],Overhand,1-FMath::Exp(-20*DeltaTime));
+            FQuat Correction=VisualWrist[Index]*UnconstrainedVisualWrist[Index].Inverse();
+            // Keep one quaternion branch throughout release/catch. Choosing the
+            // shortest arc anew each frame flips partial blends at 180 degrees.
+            const bool ResetBranch=!bVisualWasWall||Weight<.001f||Weight>.999f;
+            if(ResetBranch?Correction.W<0:(Correction|VisualWristCorrection[Index])<0)Correction=Correction*-1;
+            VisualWristCorrection[Index]=Correction;
+            Wrist.SetRotation(FQuat::SlerpFullPath(FQuat::Identity,Correction,Weight)*UnconstrainedVisualWrist[Index]);
+            CharacterVisual->SetBoneTransformByName(Hand[Index],Wrist,EBoneSpaces::WorldSpace);
             const bool Lead=Index==(bLeadRight?1:0);
             float Curl=65;
             if(Traversal==ETraversalState::Probing&&(bGroundProbe||Lead))Curl=FMath::Lerp(65.f,12.f,Ease(0,.22f,ProbeTime));

@@ -106,7 +106,7 @@ Mac 脚本默认使用 `/Users/Shared/Epic Games/UE_5.8`。其他平台使用对
 - `ExplorerPoseComponent.cpp`：在行走骨骼更新后计算可见动作姿态。
 - `Scripts/create_island_materials.py`：沙滩/岩壁混合、浅海、浪花与丛林材质。
 
-当前 **121 项检查通过，0 失败**。运行结果见[测试报告](Docs/runtime-test.txt)，覆盖沙滩至塔下路线、全部 23 把手、三阶段动作、空格确认与单次指令缓存、地面试探取消、移动障碍中断、30/60/120 Hz 跳跃路径、着装人物的骨盆与墙面手脚接触、登顶下攀、地面 Motion Matching、武器动作、道具和存档。新克隆恢复素材后应重新运行检查。
+当前 **122 项检查通过，0 失败**。运行结果见[测试报告](Docs/runtime-test.txt)，覆盖沙滩至塔下路线、全部 23 把手、三阶段动作、空格确认与单次指令缓存、地面试探取消、移动障碍中断、30/60/120 Hz 跳跃路径、着装人物的骨盆与墙面手脚接触、登顶下攀、地面 Motion Matching、武器动作、道具和存档。新克隆恢复素材后应重新运行检查。
 
 本机预览为 `Docs/island-overview.png`、`island-beach.png`、`island-tower.png` 和 `island-grips.png`。编辑器启动时执行 `Scripts/editor_view.py` 并增加 `-AdventureCapture -AdventureCaptureExit` 可重新生成。`-WatchtowerVisualReview` 会进入真实抓边状态，生成 `Docs/tower-gameplay.png` 后退出。
 

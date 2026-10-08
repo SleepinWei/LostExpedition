@@ -110,6 +110,9 @@ private:
     FVector VisualElbowBend[2]={FVector::ZeroVector,FVector::ZeroVector};
     FVector VisualKneeBend[2]={FVector::ZeroVector,FVector::ZeroVector};
     FQuat VisualWrist[2]={FQuat::Identity,FQuat::Identity};
+    FQuat VisualWristCorrection[2]={FQuat::Identity,FQuat::Identity};
+    // Retargeted wrist rotations before contact correction, for flight validation.
+    FQuat UnconstrainedVisualWrist[2]={FQuat::Identity,FQuat::Identity};
     float VisualCurl[2]={0,0};
     bool bVisualWasWall=false;
     int32 FindGrip(int32 From,const FVector2D& Input) const;
