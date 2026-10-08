@@ -1,6 +1,6 @@
 WALL_CLIMB_REVIEW_COMPLETE
-480 requested and completed Unreal frames; 960 x 600; 60 Hz animation timestep.
+630 requested and completed Unreal frames; 960 x 600; 60 Hz animation timestep.
 Ground probe, explicit Space jump, secure catch, buffered vertical climb,
-horizontal transfer and buffered return to upward climbing.
-Frame 300 deliberately cuts to the high horizontal route.
+horizontal transfer, buffered return to upward climbing and mocap top-out.
+Frames 300 and 480 deliberately cut to the horizontal route and summit.
 No substituted or interpolated frames; fixed-timestep capture is not a performance benchmark.

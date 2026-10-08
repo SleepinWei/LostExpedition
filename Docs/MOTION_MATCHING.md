@@ -18,7 +18,7 @@ All 51 sequences come from the installed UE 5.8 High mannequin template. Generat
 
 The graph blends Motion Matching with an explicit-time jump/fall/land sequence evaluator, then collects pose history before its final output. Motion Matching uses its internal blend stack with a 0.18-second transition and a 0.65–1.8 playback range. Weapon database changes interrupt a continuing result outside the allowed database; an old unarmed pose cannot persist after entering pistol/rifle aim.
 
-The hidden skeletal mesh evaluates this graph. Its resulting pose feeds upper-body fire/reload/equip layers, full-body transition correction and climbing contact IK. The completed pose is then retargeted to the clothed Diesel character. The old directional weapon selector runs only when the generated Motion Matching blueprint is unavailable.
+The hidden skeletal mesh evaluates this graph. Its resulting pose feeds upper-body fire/reload/equip layers, full-body transition correction and climbing contact IK. The completed pose is then retargeted to the selected clothed character. The old directional weapon selector runs only when the generated Motion Matching blueprint is unavailable.
 
 ## Restore or regenerate
 
@@ -40,4 +40,4 @@ The runtime suite evaluates the actual AnimGraph while advancing CharacterMoveme
 
 The databases contain locomotion loops. Dedicated start/stop, pivot, stumble and varied landing clips are still absent. Wall climbing samples full-body leap/probe/catch sequences and phase-weighted contact IK described in [WALL_CLIMB.md](WALL_CLIMB.md). Eight generated action sequences are sampled at runtime. Matching plus blending improves selection and transitions but cannot replace missing animation coverage. Climbing uses explicit probe/leap/catch phases with procedural contact correction; root-motion Motion Warping is not active.
 
-[Epic's Motion Matching documentation](https://dev.epicgames.com/documentation/en-us/unreal-engine/motion-matching-in-unreal-engine) describes schema, database, trajectory and pose-history setup. [Game Animation Sample](https://www.fab.com/listings/880e319a-a59e-4ed2-b268-b32dac7fa016) remains an optional source for expanding authored coverage; its content has not been imported.
+[Epic's Motion Matching documentation](https://dev.epicgames.com/documentation/en-us/unreal-engine/motion-matching-in-unreal-engine) describes schema, database, trajectory and pose-history setup. [Game Animation Sample](https://www.fab.com/listings/880e319a-a59e-4ed2-b268-b32dac7fa016) remains an optional source for expanding authored coverage; selected mocap clips and TwinBlast have now been imported; the ground Pose Search databases still use the original 51 template loops.

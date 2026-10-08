@@ -15,6 +15,7 @@ UExplorerMotionMatching::UExplorerMotionMatching() {
     for(const TCHAR* Type:{TEXT("Unarmed"),TEXT("Pistol"),TEXT("Rifle")})
         Databases.Add(LoadObject<UPoseSearchDatabase>(nullptr,*FString::Printf(TEXT("/Game/Animation/MotionMatching/PSD_%s"),Type)));
     JumpSequence=LoadObject<UAnimSequence>(nullptr,TEXT("/Game/Characters/Mannequins/Anims/Unarmed/Jump/MM_Jump"));
+    if(auto* MocapJump=LoadObject<UAnimSequence>(nullptr,TEXT("/Game/Animation/Mocap/MC_M_Neutral_Jump_F_Start_Stand_Lfoot")))JumpSequence=MocapJump;
     FallSequence=LoadObject<UAnimSequence>(nullptr,TEXT("/Game/Characters/Mannequins/Anims/Unarmed/Jump/MM_Fall_Loop"));
     LandSequence=LoadObject<UAnimSequence>(nullptr,TEXT("/Game/Characters/Mannequins/Anims/Unarmed/Jump/MM_Land"));
 }
@@ -45,7 +46,7 @@ void UExplorerMotionMatching::NativeUpdateAnimation(float DT) {
     if(bWasFalling&&!Falling&&!Traversing)LandingRemaining=.25f;
     if(Traversing)LandingRemaining=0;
     UAnimSequence* NewAir=Falling?(Movement->Velocity.Z>80?JumpSequence.Get():FallSequence.Get()):LandSequence.Get();
-    if(AirSequence!=NewAir)AirPoseTime=0;else AirPoseTime+=DT;
+    if(AirSequence!=NewAir)AirPoseTime=NewAir==JumpSequence&&JumpSequence&&JumpSequence->GetName().StartsWith(TEXT("MC_"))?.40f:0;else AirPoseTime+=DT;
     AirSequence=NewAir;bUseAirPose=Falling||LandingRemaining>0;
     if(AirSequence)AirPoseTime=AirSequence==FallSequence?FMath::Fmod(AirPoseTime,AirSequence->GetPlayLength()):FMath::Min(AirPoseTime,AirSequence->GetPlayLength());
     if(!Falling&&LandingRemaining>0&&LandSequence)AirPoseTime=(.25f-LandingRemaining)/.25f*LandSequence->GetPlayLength();

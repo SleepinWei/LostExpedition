@@ -1,5 +1,5 @@
 Lost Expedition runtime smoke test
-122 checks; 0 failures
+127 checks; 0 failures
 
 PASS: Continuous island terrain generated with collision
 PASS: Tropical palms, canopy trees and dense grass are instanced
@@ -23,19 +23,24 @@ PASS: Walk from highland to the first tower handhold
 PASS: Cannot grab a handhold while facing away
 PASS: Approaching the first handle starts the exploratory reach stage
 PASS: Ground probing never teleports the capsule or automatically jumps
-PASS: The clothed Diesel character is visible and uses the runtime IK retargeter
+PASS: The selected clothed character is visible and uses the runtime IK retargeter
 PASS: Retargeting preserves pelvis height instead of replacing it with the ground root
 PASS: Eight full body sequences cover ground reach/leap, mirrored wall probe/leap, catch and hang
+PASS: Both Epic mocap climbing performances are retargeted to the active source skeleton
+PASS: The selected character resolves all hand, elbow, pelvis, knee and foot landmarks
+PASS: Paragon's embedded weapon assemblies are hidden; project weapons remain separate
 PASS: The exploratory reach cannot top out
 PASS: Space explicitly launches the jump-to-grab stage
+PASS: Ground jump evaluates captured push-off and reach before the source top-out segment
 PASS: Landing on a handhold enters the secure catch animation
 PASS: The catch settles into a supported hang on the first handle
 PASS: Intermediate wall handles cannot be used as walkable platforms
 PASS: Changing probe direction preserves the visible pose within one centimetre at 60 Hz
-PASS: Vertical, lateral and interrupted-probe traces have no visible joint rotation over 20 degrees per 60 Hz frame
+PASS: Ground entry, vertical, lateral and interrupted-probe traces have no visible joint rotation over 20 degrees per 60 Hz frame
 PASS: Probe, leap, catch and buffered transitions stay below three centimetres per boundary frame
 PASS: Planted boots drift less than two millimetres per frame while probing
 PASS: Wall jump visibly lowers the pelvis before push-off
+PASS: Wall transfer samples captured upper-body reach during flight
 PASS: Wall jump releases all four contact constraints for at least 0.2 seconds
 PASS: Unconstrained flight contains arm swing and leg tuck beyond capsule translation
 PASS: Free-flight hands remain on their anatomical sides after retargeting
@@ -83,7 +88,7 @@ PASS: Probe / Space leap / secure catch 20 / 22
 PASS: Probe / Space leap / secure catch 21 / 22
 PASS: Probe / Space leap / secure catch 22 / 22
 PASS: Start the final mantle from the top stone handle
-PASS: The clothed character stays animated through the rooftop pull-up
+PASS: The clothed character evaluates full-body mocap through the rooftop pull-up
 PASS: Stand on the ruined tower roof after climbing the entire wall
 PASS: Summit checkpoint can be reached and interacted with
 PASS: Enter the top handhold from the roof edge to climb back down

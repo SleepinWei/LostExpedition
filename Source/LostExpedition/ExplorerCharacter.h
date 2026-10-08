@@ -50,6 +50,9 @@ public:
     UPROPERTY(VisibleAnywhere) TObjectPtr<class UExplorerVisualComponent> CharacterVisual;
     // Ground probe, left/right wall probe, left/right leap, catch, hang, ground leap.
     UPROPERTY() TArray<TObjectPtr<class UAnimSequence>> WallClimbAnimations;
+    UPROPERTY() TArray<TObjectPtr<class UAnimSequence>> MocapClimbAnimations;
+    bool bMocapPoseActive=false;
+    float MocapPoseTime=0, MocapPoseWeight=0;
     int32 CurrentGrip=-1, TargetGrip=-1;
     float ReachTime=0, GripCooldown=0;
     float ReachDuration=GripTransferDuration;
@@ -109,6 +112,7 @@ private:
     FVector SourceKneeBend[2]={FVector::ZeroVector,FVector::ZeroVector};
     FVector VisualElbowBend[2]={FVector::ZeroVector,FVector::ZeroVector};
     FVector VisualKneeBend[2]={FVector::ZeroVector,FVector::ZeroVector};
+    float VisualElbowAngle[2]={0,0},VisualKneeAngle[2]={0,0};
     FQuat VisualWrist[2]={FQuat::Identity,FQuat::Identity};
     FQuat VisualWristCorrection[2]={FQuat::Identity,FQuat::Identity};
     // Retargeted wrist rotations before contact correction, for flight validation.

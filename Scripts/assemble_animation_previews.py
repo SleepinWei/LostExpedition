@@ -8,10 +8,11 @@ project = Path(__file__).resolve().parents[1]
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--motion-matching-only', action='store_true')
 parser.add_argument('--wall-climb-only', action='store_true')
+parser.add_argument('--firearms-only', action='store_true')
 args = parser.parse_args()
 output = project / 'Docs/Images'
 output.mkdir(exist_ok=True)
-clips = [('climbing-animation', 'WallClimbFrames', 0, 300)] if args.wall_climb_only else [('motion-matching', 'MotionMatchingFrames', 0, 288)] if args.motion_matching_only else [('climbing-animation', 'AnimationFrames', 0, 160), ('firing-animation', 'AnimationFrames', 160, 330)]
+clips = [('firing-animation', 'AnimationFrames', 160, 330)] if args.firearms_only else [('climbing-animation', 'WallClimbFrames', 0, 300)] if args.wall_climb_only else [('motion-matching', 'MotionMatchingFrames', 0, 288)] if args.motion_matching_only else [('climbing-animation', 'AnimationFrames', 0, 160), ('firing-animation', 'AnimationFrames', 160, 330)]
 for name, directory, start, end in clips:
     source = project / 'Docs' / directory
     stride = 3 if name == 'motion-matching' else 2
@@ -25,7 +26,7 @@ for name, directory, start, end in clips:
             if not captured:
                 raise SystemExit('No completed Motion Matching screenshots in the current capture log')
             if directory == 'WallClimbFrames':
-                missing_current = sorted(set(range(480)) - set(captured))
+                missing_current = sorted(set(range(630)) - set(captured))
                 if missing_current:
                     raise SystemExit(f'Incomplete current wall-climb capture: {missing_current}')
             else:

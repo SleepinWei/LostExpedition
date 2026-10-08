@@ -73,9 +73,9 @@ python3 Scripts/restore_engine_assets.py --engine "/Users/Shared/Epic Games/UE_5
 
 地面移动现已接入真实 Motion Matching。运行 `Scripts/SetupMotionMatching.command`，或在 Unreal 的 Python 菜单执行 `Scripts/setup_motion_matching.py`，可用上述官方模板素材生成 `/Game/Animation/MotionMatching/PSS_Explorer`、`PSD_Unarmed`、`PSD_Pistol`、`PSD_Rifle` 与 `ABP_ExplorerMotionMatching`。三个数据库共 51 个动作、2,910 个索引姿态；生成副本启用循环与根提取，原模板不修改。重启 Unreal 后角色加载新动画类。生成数据库、蓝图与动作副本全部保留本地，Git 提交 C++ 与可重现脚本。详见 [Motion Matching 接入说明](MOTION_MATCHING.md)。
 
-[Epic Game Animation Sample](https://www.fab.com/listings/880e319a-a59e-4ed2-b268-b32dac7fa016) 是后续扩充起停、急转与正式攀越动作的可选免费来源，本次尚未下载迁移。当前 Motion Matching 接入无需该示例或 Fab 登录。攀爬现有伸手试探、空格起跳抓取和抓稳三阶段关键帧序列，接触由 IK 修正，根运动 Motion Warping 尚未启用。
+[Epic Game Animation Sample](https://www.fab.com/listings/880e319a-a59e-4ed2-b268-b32dac7fa016) 是后续扩充起停、急转与正式攀越动作的可选免费来源，已下载 5.8 并迁移下述人物和动捕。当前 Motion Matching 接入无需该示例或 Fab 登录。攀爬现有伸手试探、空格起跳抓取和抓稳三阶段关键帧序列，接触由 IK 修正，根运动 Motion Warping 尚未启用。
 
-## 着装人物 Diesel 与三阶段攀爬
+## 旧人物 Diesel（可选回退）
 
 人物来源为 [Diesel / 3D Character Rigged，THEUNSEENVULGA](https://theunseenvulga.itch.io/3d-charater-riggeddiesel)，作者声明 CC0，免费用于个人和商业项目。下载 `Diesel.glb`（点击 Download Now，再选择 No thanks, just take me to the downloads）。原始文件为 10,515,216 字节，SHA-256 为 `9fbb438e8221f96e1f25da90c731f474bf031970a75ba132c87e1aeaf784745e`。
 
@@ -90,7 +90,7 @@ Scripts/SetupExplorer.command /absolute/path/to/Diesel.glb
 ## 恢复步骤
 
 1. 安装 UE 5.8 与对应 C++ 工具链，恢复上面的 Unreal 官方模板资源。
-2. 编译 `LostExpeditionEditor`；Mac 可运行 `Scripts/Build.command`。随后运行 `Scripts/SetupMotionMatching.command` 和上述 `Scripts/SetupExplorer.command` 建立移动动画、人物和三阶段攀爬内容，再重启 Unreal。首次打开可能提示默认地图尚不存在，完成下列生成步骤后即可使用。
+2. 编译 `LostExpeditionEditor`；Mac 可运行 `Scripts/Build.command`。随后运行 `Scripts/SetupMotionMatching.command` 和下述 `Scripts/SetupMocap.command` 建立移动动画、人物、动捕和三阶段攀爬内容，再重启 Unreal。首次打开可能提示默认地图尚不存在，完成下列生成步骤后即可使用。
 3. 下载并导入“植被和路面素材”中的四项必需资源，确保目标路径与名称完全一致。
 4. 在系统终端运行 `python3 Scripts/download_coastal_assets.py`，下载海岸模型和贴图。
 5. 在 Unreal 的 **Tools → Execute Python Script** 中执行 `Scripts/import_coastal_assets.py`。等待导入、材质和 LOD 处理完成。
@@ -105,6 +105,18 @@ Scripts/SetupExplorer.command /absolute/path/to/Diesel.glb
 
 Priority: free assets first, then paid characters, then a custom MetaHuman. [Epic City Sample Crowds](https://www.fab.com/listings/903037e9-e1ac-4f41-96e8-1683c6fa7ad4?lang=en) is the first candidate: the official free UE-only pack includes rigged head/body meshes adapted from MetaHumans and modular clothes, hair and accessories. An explorer outfit and action retargeting still require adaptation; this is not a ready-made Drake character. [Mixamo](https://www.mixamo.com/) is another free source of rigged characters and actions ([Adobe FAQ](https://helpx.adobe.com/creative-cloud/faq/mixamo-faq.html)). Neither character pack has been imported. Any source downloads, meshes and textures stay local; public Git retains source links and setup code.
 
-City Sample Crowds and Game Animation Sample have been added to the development account's Fab library. **Acquisition does not mean installation:** the Launcher downloads have not started, and the playable character remains Diesel. No downloaded mocap clips have replaced the authored climbing sequences yet.
+## Installed Game Animation Sample 5.8 character and mocap
 
-`Scripts/inspect_mocap_source.py` inventories a downloaded sample's mounted content without modifying assets. Run it using Unreal's Python commandlet with `--root /Game` (or a narrower mounted folder), then use `--mesh /Game/...` to inspect a candidate skeletal mesh. The JSON report goes to the local, ignored `Docs/mocap-source-inspection.json`. It records animation duration, root displacement, skeleton, tracks and float curves, plus selected mesh bone hierarchies. `--name` filters animation names and `--detail-limit` limits loading; the default name filter covers jump, climb, hang, reach, vault, mantle, fall and land. A matching filename is only a candidate, not proof that a clip is mocap or suitable for a handhold leap. The script has been checked in UE 5.8 against four existing template animations and Diesel's 65-bone skeleton; evaluation of the incoming sample assets remains pending.
+[Game Animation Sample](https://www.fab.com/listings/880e319a-a59e-4ed2-b268-b32dac7fa016) is downloaded locally. Selected content has been migrated into LostExpedition: **TwinBlast ActionHero**, the UEFN source rig and four mocap sequences. The character is detailed but has a long coat and mechanical arms; it is an interim action-hero choice rather than a close Drake likeness. City Sample Crowds remains owned but **not downloaded or installed**.
+
+After restoring template assets and compiling, close Unreal and run:
+
+```sh
+Scripts/SetupMocap.command /absolute/path/to/GameAnimationSample.uproject
+```
+
+Keep the sample project in a sibling directory of LostExpedition. The script uses Unreal AssetTools migration with dependencies and preserves existing destination packages. It creates UEFN → Manny baked animation retargets and Manny → TwinBlast runtime retargeting. Supporting wall poses are generated from project code. The imported character dependencies occupy approximately 704 MiB; selected source content about 13 MiB and baked clips about 2.6 MiB. All remain under ignored local Content; no original assets are pushed to public Git.
+
+The exact selected paths are recorded in [mocap-migration.json](mocap-migration.json) and [mocap-setup.json](mocap-setup.json). These manifests identify sources, not a redistribution license. Obtain assets through Epic and use the terms attached to those assets. [WALL_CLIMB.md](WALL_CLIMB.md) explains playback ranges and the remaining authored/mocap split.
+
+`Scripts/inspect_mocap_source.py` inventories downloaded content without modifying it. It records skeletons, tracks, durations, root displacement and float curves; `--mesh /Game/...` adds bone hierarchies. This run inspected 70 candidate sequences and the 93-bone UEFN / 204-bone TwinBlast meshes without errors. A matching filename alone does not establish suitability for a wall leap.

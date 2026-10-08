@@ -1,6 +1,6 @@
 # Three-stage wall climbing
 
-The visible **Diesel** character uses ground Motion Matching and weapon animation through Unreal's runtime IK Retargeter. Climbing now samples complete action sequences before retargeting, with **one final wall-contact solve on the visible rig**. The hidden source skeleton no longer solves the same contacts first.
+The visible **TwinBlast ActionHero** character uses ground Motion Matching and weapon animation through Unreal's runtime IK Retargeter. Climbing now samples complete action sequences before retargeting, with **one final wall-contact solve on the visible rig**. The hidden source skeleton no longer solves the same contacts first.
 
 | Stage | Input | Performance |
 | --- | --- | --- |
@@ -20,7 +20,21 @@ The previous revision sampled `AS_Hang` at time zero throughout climbing. Moving
 - Wrist contact correction follows the release/arrival curve. Free-flight wrists retain the retargeted animation instead of being overwritten with a fixed palm pose. The correction keeps a continuous quaternion branch during partial blends to prevent a sudden flip when the relative rotation crosses 180 degrees. The runtime arm solve uses a fixed extension reserve. Re-applying a nonlinear soft-reach correction to an already-corrected, captured wrist point caused an elbow step on direction changes and is removed.
 - During an interrupted probe, the displayed hand positions are captured and root support remains on the original ledge. Planted boots are world-space contacts. Pose springs act before final contact correction rather than repeatedly smoothing an already-constrained pose.
 
-These are original program-authored keyframe animations, **not imported climbing motion capture**. Ground Motion Matching remains active. Root-motion Motion Warping, a general surface reach-ring selector and physics secondary motion are not implemented. The current stylized Diesel rig has short arms; a realistic character and a broader authored/mocap library remain relevant to matching the target art quality. Passing the regression suite does not certify animation quality.
+The eight support sequences remain original program-authored keyframes. **Epic Game Animation Sample 5.8 motion capture is now installed** alongside them:
+
+| Action | Playback |
+| --- | --- |
+| Normal jump | `MC_M_Neutral_Jump_F_Start_Stand_Lfoot`, starting at 0.40 s (push-off); existing fall and landing transitions remain |
+| Ground-to-wall | `MC_M_Neutral_Traversal_Climb_Start_2_5_stand_F_Lfoot`, 0.00–0.43 s while probing, a short 0.43–0.40 s compression, then 0.40–0.72 s push-off/reach; the short catch continues to 0.80 s while blending to hang |
+| Wall-to-wall | Left/right 2.5 m climb clips, 0.40–0.74 s; up to 60% upper-body blend during flight; authored legs retain wall push-off and tuck |
+| Rooftop pull-up | Left-foot 2.5 m climb, 0.80–2.20 s as a full-body action |
+| One-metre mantle | Retargeted and available locally; not selected by this tower controller |
+
+The captured root track is extracted. The swept gameplay path still owns capsule movement. Ground contacts release at the captured push-off; wall contacts use their separate support timeline. The animated elbow/knee plane is transported from its original limb axis to the target axis; direct projection could reverse it. Signed bend angles and wrist quaternions retain a continuous branch during partial IK blends. Stage transitions inherit final visible limb positions, while wrist contact rotation is excluded from the seed to avoid applying it twice. Hand axes and finger curl axes are calibrated from the selected model's reference knuckles rather than assuming Diesel's axes.
+
+The half-second ground probe preserves the captured arm pose with only 35% reach correction; it does not plant the hands. Pelvis height respects both planted legs' reach after retargeting, and the exploratory hand arc bows toward the wall. On Space, the final visible pose seeds the transition and the arms are free for push-off; contact IK returns near the destination. An early Space input also retains the wrist orientation weight actually reached by the probe before releasing it into the jump.
+
+A dedicated hang-to-hang mocap library is still missing. Root-motion Motion Warping, a general reach-ring selector and coat/secondary physics are not implemented. TwinBlast's long coat and mechanical arms are a visual compromise, not a Drake likeness. Passing regression tests does not certify artistic quality.
 
 ## Research used
 
@@ -30,21 +44,23 @@ The published GDC session descriptions cover [partial/additive layering and play
 
 ## Character source and restoration
 
-[Diesel by THEUNSEENVULGA](https://theunseenvulga.itch.io/3d-charater-riggeddiesel) is a hand-painted rigged male character published under CC0. Download **Diesel.glb** through “Download Now” → “No thanks, just take me to the downloads”. No paid pack or Fab login is required. The original download and imported meshes/textures remain local.
+Download Epic's free [Game Animation Sample 5.8](https://www.fab.com/listings/880e319a-a59e-4ed2-b268-b32dac7fa016) through Fab / Epic Launcher. The installed sample includes `SKM_TwinBlast_ActionHero`; it has 204 bones. Epic's [sample documentation](https://dev.epicgames.com/documentation/en-us/unreal-engine/game-animation-sample-project-in-unreal-engine) identifies the animation library as motion captured and supports migrating its assets into other projects.
 
-The tested source is 10,515,216 bytes, SHA-256 `9fbb438e8221f96e1f25da90c731f474bf031970a75ba132c87e1aeaf784745e`. `prepare_explorer_character.py` merges body, clothes, boots, hair and facial meshes while preserving embedded textures and skin weights; it selects the middle eyebrow variant. `import_explorer_character.py` imports one skeletal mesh, characterizes both rigs, maps the chains and aligns the retarget pose. Root-motion remapping is disabled because the Mixamo rig uses its pelvis as the skeleton root; remapping that bone to the source ground root would collapse pelvis height and stretch the skin. The pelvis operation preserves animation offsets while gameplay controls displacement.
+1. Restore the official template assets and compile the project, then run `Scripts/SetupMotionMatching.command`.
+2. Keep the downloaded sample beside `LostExpedition`, close Unreal and run `Scripts/SetupMocap.command /absolute/path/to/GameAnimationSample.uproject`.
+3. Migration preserves existing packages, includes dependencies, and selects four animations plus the source and visible character meshes. `setup_mocap_character.py` creates UEFN → Manny baked retargets and Manny → TwinBlast runtime retargeting, then generates the eight wall-support poses.
+4. Restart Unreal and run `Scripts/SmokeTest.command` and `Scripts/WallClimbReview.command`.
 
-1. Restore official template assets and build the C++ editor module as described in [ASSETS.md](ASSETS.md).
-2. Close Unreal and run `Scripts/SetupExplorer.command /absolute/path/to/Diesel.glb`. Without an argument it uses `ArtSource/Characters/Diesel.glb` from a previous download.
-3. Restart Unreal. The visible mesh is `/Game/Explorer/Character/Explorer/SkeletalMeshes/SK_Diesel`; the runtime retargeter is `/Game/Explorer/RTG_Explorer_Diesel`.
-4. Run `Scripts/SmokeTest.command` and `Scripts/WallClimbReview.command` to check gameplay and capture a real-engine review.
+TwinBlast's built-in guns, grenade and ultimate-weapon assembly are collapsed at their dedicated bones; the project's separate pistol/rifle component owns weapon rendering and attachment.
 
-Generated assets, original downloads and raw capture frames are excluded from Git. The public repository keeps code, scripts, source links, small previews and reports.
+The visible mesh is `/Game/Characters/Paragon/Heroes/TwinBlast/Meshes/SKM_TwinBlast_ActionHero`; the runtime retargeter is `/Game/Explorer/RTG_Explorer_TwinBlast`. Selected clips are baked under `/Game/Animation/Mocap/`. [Migration manifest](mocap-migration.json) and [retarget report](mocap-setup.json) record the exact paths. Original samples, imported/generated Content and raw frames stay local. Public Git contains code, scripts, source links and small previews.
+
+The optional fallback is [CC0 Diesel by THEUNSEENVULGA](https://theunseenvulga.itch.io/3d-charater-riggeddiesel). Restore it with `Scripts/SetupExplorer.command /absolute/path/to/Diesel.glb` and launch with `-LegacyExplorer`. Its Mixamo pelvis is the root, so its retargeter disables independent root remapping. TwinBlast has a separate root; both profiles resolve canonical gameplay landmarks.
 
 ## Validation
 
-UE 5.8.3 Mac Development builds successfully; **122 checks pass, zero failures**. The tested jump lowers the pelvis 4.957 cm before takeoff and has 14 unconstrained frames at 60 Hz. During that interval the hand and boot move 24.446/26.507 cm relative to the capsule. Maximum sampled joint rotation is 17.399 degrees per frame; interrupted-probe displacement is 0.3327 cm. Across 27 fully released hand samples, final contact correction changes the animated wrist rotation by at most 0.001135 degrees (0.01-degree tolerance). These figures apply to the scripted cases only.
+UE 5.8.3 Mac Development builds successfully; **127 checks pass, zero failures**. The TwinBlast trace covers full ground probing, immediate Space, vertical, horizontal and interrupted wall probes. The tested wall jump lowers the pelvis 3.871 cm before takeoff and has 13 unconstrained frames at 60 Hz. Hand/boot travel relative to the capsule is 16.395/32.352 cm. Maximum joint rotation is 18.900 degrees per frame; maximum state-boundary displacement is 2.185 cm. Across 26 fully released hand samples, contact correction changes wrist rotation by at most 0.001135 degrees. These figures apply only to the scripted cases.
 
-See [runtime-test.txt](runtime-test.txt) and [climb-continuity-summary.json](climb-continuity-summary.json) for the latest build and runtime measurements. The suite measures 13 visible joints through vertical, horizontal and interrupted probes, plus preload, true unconstrained flight, arm/leg travel relative to the capsule and anatomical hand sides. It also checks all 23 holds, drop, blockers, descent, mantle, ground locomotion, weapons and items.
+See [runtime-test.txt](runtime-test.txt) and [climb-continuity-summary.json](climb-continuity-summary.json) for the latest build and runtime measurements. The suite measures 13 visible joints through both ground-probe input timings and vertical, horizontal and interrupted wall probes, plus preload, true unconstrained flight, arm/leg travel relative to the capsule and anatomical hand sides. It also checks all 23 holds, drop, blockers, descent, mantle, ground locomotion, weapons and items.
 
-The [60 fps review](Images/wall-climb-60fps.mp4) contains 480 actual Unreal frames, with a deliberate cut to the high horizontal route at frame 300. Simulation advances only after each screenshot completes. Fixed-timestep capture does not measure hardware performance; raw frames remain local.
+The [60 fps review](Images/wall-climb-60fps.mp4) contains 630 actual Unreal frames, including deliberate cuts to the horizontal route at frame 300 and rooftop pull-up at frame 480. Simulation advances only after each screenshot completes. Fixed-timestep capture does not measure hardware performance; raw frames remain local.

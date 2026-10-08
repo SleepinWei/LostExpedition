@@ -30,9 +30,12 @@ UE 5.8.3 原生 C++ 第三人称冒险原型。当前关卡为热带海岛：低
 
 [动作系统升级计划](Docs/ACTION_SYSTEM_PLAN.zh-CN.md)记录了实施步骤和仍需接入的动画素材。
 
-可见人物已替换为免费 CC0 的 **Diesel**，有面部、外套、长裤和靴子。原有地面 Motion Matching 与开火动作通过 Unreal 官方 IK Retargeter 重定向到他自己的骨骼。
+可见人物现为 Epic 免费 [Game Animation Sample](https://www.fab.com/listings/880e319a-a59e-4ed2-b268-b32dac7fa016) 中更精细的男性角色 **TwinBlast ActionHero**。他有长外套和机械前臂，风格偏动作科幻。移动、开火和攀爬通过 IK Retargeter 接到他的骨架；启动参数 `-LegacyExplorer` 可切回旧的 CC0 Diesel。
 
-爬墙分为 **伸手试探 → 空格起跳抓取 → 最终抓稳**。八条全身动作覆盖下沉蓄力、蹬伸、腾空摆臂与收腿、落手缓冲；腾空时解除墙面接触约束，接近目标后逐步抓住、落脚。可见人物只执行一次最终接触 IK，避免源骨架与重定向后的约束互相干扰。当前使用原创关键帧原型动作，尚未导入专业攀爬动捕。详见[攀爬实现与恢复说明](Docs/WALL_CLIMB.md)。
+![TwinBlast 使用工程中的手枪](Docs/Images/twinblast-character.jpg)
+
+爬墙保留 **伸手试探 → 空格起跳抓取 → 最终抓稳**。已导入 Epic 动捕，用于地面跳跃、从地面抓墙和塔顶翻上平台。墙上逐点跳跃采用“动捕上身伸展 + 原创蹬墙、收腿”的混合动作，仍缺专门的悬挂跳跃动捕库。手掌方向按新人物骨架校准，腾空时解除接触 IK。详见[攀爬实现与恢复说明](Docs/WALL_CLIMB.md)。
+
 ![着装人物的伸手试探、空格起跳和抓稳动画](Docs/Images/climbing-animation.gif)
 
 [观看完整 60 帧攀爬回放](Docs/Images/wall-climb-60fps.mp4)。这是 Unreal 固定步长渲染，不能代表设备实时帧率。
@@ -52,6 +55,7 @@ UE 5.8.3 原生 C++ 第三人称冒险原型。当前关卡为热带海岛：低
 - `Scripts/PlayTower.command`：直接到残塔下体验石把手攀爬，不清除存档。
 - `Scripts/Build.command`：编译编辑器模块。
 - `Scripts/SetupMotionMatching.command`：生成 Pose Search 数据库与编译后的动画蓝图。
+- `Scripts/SetupMocap.command`：从已下载的官方样例迁移 TwinBlast 和选定动捕，生成重定向资源。
 - `Scripts/SetupExplorer.command`：导入着装人物，生成 IK 重定向资源和八个攀爬动画。
 - `Scripts/WallClimbReview.command`：捕获伸手、空格起跳和抓稳三个阶段。
 - `Scripts/MotionMatchingReview.command`：捕获实际匹配的移动与战斗。
@@ -94,7 +98,7 @@ Mac 脚本默认使用 `/Users/Shared/Epic Games/UE_5.8`。其他平台使用对
 
 ## 生成与验证
 
-官方模板素材恢复并编译后，运行 `Scripts/SetupMotionMatching.command` 生成数据库与动画蓝图，并运行 `Scripts/SetupExplorer.command /absolute/path/to/Diesel.glb` 导入人物和攀爬动画，再重启 Unreal。`Scripts/MotionMatchingReview.command` 可捕获实际匹配移动。
+官方模板素材恢复并编译后，运行 `Scripts/SetupMotionMatching.command`，在 Epic Launcher 下载 Game Animation Sample **5.8**，再运行 `Scripts/SetupMocap.command /absolute/path/to/GameAnimationSample.uproject` 迁移人物和动捕、生成重定向与支撑动作，最后重启 Unreal。`Scripts/MotionMatchingReview.command` 可捕获实际匹配移动。
 
 素材恢复后，在系统终端运行 `python3 Scripts/prepare_island_assets.py`，生成原创椰子树并下载沙滩贴图。随后在 Unreal 的 **Tools → Execute Python Script** 中执行 `Scripts/setup_scene.py`。该脚本会覆盖生成地图上的手动修改，请先保存自己的调整。
 
@@ -106,12 +110,12 @@ Mac 脚本默认使用 `/Users/Shared/Epic Games/UE_5.8`。其他平台使用对
 - `ExplorerPoseComponent.cpp`：在行走骨骼更新后计算可见动作姿态。
 - `Scripts/create_island_materials.py`：沙滩/岩壁混合、浅海、浪花与丛林材质。
 
-当前 **122 项检查通过，0 失败**。运行结果见[测试报告](Docs/runtime-test.txt)，覆盖沙滩至塔下路线、全部 23 把手、三阶段动作、空格确认与单次指令缓存、地面试探取消、移动障碍中断、30/60/120 Hz 跳跃路径、着装人物的骨盆与墙面手脚接触、登顶下攀、地面 Motion Matching、武器动作、道具和存档。新克隆恢复素材后应重新运行检查。
+当前 **127 项检查通过，0 失败**。运行结果见[测试报告](Docs/runtime-test.txt)，覆盖沙滩至塔下路线、全部 23 把手、三阶段动作、空格确认与单次指令缓存、地面试探取消、移动障碍中断、30/60/120 Hz 跳跃路径、着装人物的骨盆与墙面手脚接触、登顶下攀、地面 Motion Matching、武器动作、道具和存档。新克隆恢复素材后应重新运行检查。
 
 本机预览为 `Docs/island-overview.png`、`island-beach.png`、`island-tower.png` 和 `island-grips.png`。编辑器启动时执行 `Scripts/editor_view.py` 并增加 `-AdventureCapture -AdventureCaptureExit` 可重新生成。`-WatchtowerVisualReview` 会进入真实抓边状态，生成 `Docs/tower-gameplay.png` 后退出。
 
 Git 中仅包含 `Docs/Images/` 下的压缩预览副本。
 
-`Scripts/WallClimbReview.command` 以 60 Hz 动画步长捕获 480 帧三阶段动作到 `Docs/WallClimbFrames/`；使用安装了 Pillow 的 Python 运行 `Scripts/assemble_animation_previews.py --wall-climb-only` 生成 README 动图。`Scripts/AnimationReview.command` 捕获武器与完整攀爬回放；原始帧保留在本地。单帧跳变、关节旋转和改方向的前后对比见[连续性报告](Docs/climb-continuity-summary.json)。
+`Scripts/WallClimbReview.command` 以 60 Hz 动画步长捕获 630 帧三阶段动作到 `Docs/WallClimbFrames/`；使用安装了 Pillow 的 Python 运行 `Scripts/assemble_animation_previews.py --wall-climb-only` 生成 README 动图。`Scripts/AnimationReview.command` 捕获武器与完整攀爬回放；原始帧保留在本地。单帧跳变、关节旋转和改方向的测量结果见[连续性报告](Docs/climb-continuity-summary.json)。
 
-当前仍是单人冒险原型。可见角色为 Diesel。爬墙使用完整关键帧动作与随阶段变化的接触 IK，尚无导入的正式动捕攀爬。地面移动已接入真实 Motion Matching / Pose Search：徒手、手枪、步枪三个数据库，共 51 个官方模板动作、2,910 个索引姿态。起停和急转仍需专门的正式动作扩充；根运动 Motion Warping 尚未启用，Game Animation Sample 尚未导入。绳索摆荡、声音与电影演出仍未实现。资源来源见 [素材说明](Docs/ASSETS.md)。
+当前仍是单人冒险原型。TwinBlast 与选定的 Epic 动捕已在本地接入；墙上换点仍是混合动作，不能视为完整的《神秘海域》级攀爬动作库。地面 Motion Matching / Pose Search 使用三个数据库、51 个官方模板动作、2,910 个索引姿态；专门的起停、急转动作仍需扩充。根运动 Motion Warping、外套物理、绳索摆荡、声音与电影演出尚未实现。资源来源见 [素材说明](Docs/ASSETS.md)。

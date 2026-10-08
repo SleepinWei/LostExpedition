@@ -26,10 +26,13 @@ Actual Unreal Engine captures from the current island level.
 
 The [action system upgrade plan](Docs/ACTION_SYSTEM_PLAN.md) records the implementation stages and remaining animation dependencies.
 
-The visible hero is **Diesel**, a free CC0 clothed character with a face, jacket, trousers and boots. The existing ground Motion Matching and firearm layers are retargeted to his rig with Unreal's IK Retargeter.
+The visible hero is now **TwinBlast ActionHero**, a detailed male character included in Epic's free [Game Animation Sample](https://www.fab.com/listings/880e319a-a59e-4ed2-b268-b32dac7fa016). His long coat and mechanical forearms give him a science-fiction action style. Ground Motion Matching, firearm layers and climbing are retargeted to his rig. `-LegacyExplorer` selects the previous CC0 Diesel character.
 
-Wall climbing has three stages: **reach and probe → Space to jump and grab → secure catch**. Eight full-body sequences include visible preload, leg extension, airborne arm swing/leg tuck and catch absorption. Wall contacts release during flight and blend back in on arrival. A single final IK pass on the visible rig preserves the authored performance and corrects the supporting hands and boots. These are original keyframe prototype actions; imported climbing motion capture remains future work. See the [wall climbing guide](Docs/WALL_CLIMB.md) for controls, implementation and sources.
-![Three-stage wall climbing with the clothed Diesel character](Docs/Images/climbing-animation.gif)
+![TwinBlast ActionHero using the project pistol](Docs/Images/twinblast-character.jpg)
+
+Wall climbing retains **reach and probe → Space to jump and grab → secure catch**. Imported Epic motion capture now supplies the ground jump, jump-to-wall and rooftop pull-up. Wall-to-wall transfers combine captured upper-body reach with the existing authored wall push-off and leg tuck; a dedicated hanging-leap mocap library is still needed. Contact IK runs once on the visible rig, releases during flight and uses hand axes calibrated from that model's skeleton. See the [wall climbing guide](Docs/WALL_CLIMB.md) for exact coverage and restoration.
+
+![Three-stage wall climbing with TwinBlast and imported Epic motion capture](Docs/Images/climbing-animation.gif)
 
 [Watch the full 60 fps climbing review](Docs/Images/wall-climb-60fps.mp4). This is a fixed-timestep Unreal render, not a hardware frame-rate benchmark.
 
@@ -56,6 +59,7 @@ The macOS scripts default to `/Users/Shared/Epic Games/UE_5.8`. Update that path
 | [`Scripts/PlayTower.command`](Scripts/PlayTower.command) | Start beside the tower to try wall climbing; keeps existing saves |
 | [`Scripts/Build.command`](Scripts/Build.command) | Build the editor module |
 | [`Scripts/SetupMotionMatching.command`](Scripts/SetupMotionMatching.command) | Generate the Pose Search schema, databases and compiled AnimBlueprint |
+| [`Scripts/SetupMocap.command`](Scripts/SetupMocap.command) | Migrate TwinBlast and selected Epic mocap from the downloaded sample and build retarget assets |
 | [`Scripts/SetupExplorer.command`](Scripts/SetupExplorer.command) | Import the clothed character, build the IK retargeter and author wall-climbing sequences |
 | [`Scripts/WallClimbReview.command`](Scripts/WallClimbReview.command) | Capture the reach, Space leap and secure catch stages |
 | [`Scripts/MotionMatchingReview.command`](Scripts/MotionMatchingReview.command) | Capture actual matched movement and combat |
@@ -106,7 +110,7 @@ After restoring the required assets, run this in your system terminal to generat
 python3 Scripts/prepare_island_assets.py
 ```
 
-After compiling and restoring template assets, run `Scripts/SetupMotionMatching.command` and `Scripts/SetupExplorer.command /absolute/path/to/Diesel.glb`, then restart Unreal to load the generated animation class.
+After compiling and restoring template assets, run `Scripts/SetupMotionMatching.command`, download Game Animation Sample **5.8**, and run `Scripts/SetupMocap.command /absolute/path/to/GameAnimationSample.uproject`. This migrates the selected character/actions, builds the retargeters and generates supporting wall poses. Restart Unreal afterward. The optional legacy character uses `Scripts/SetupExplorer.command /absolute/path/to/Diesel.glb`.
 
 Then execute `Scripts/setup_scene.py` through Unreal's **Tools → Execute Python Script** menu. This regenerates the map and overwrites manual changes to that generated level; save your own edits elsewhere first.
 
@@ -123,12 +127,12 @@ Then execute `Scripts/setup_scene.py` through Unreal's **Tools → Execute Pytho
 | [`ExplorerVisualComponent.cpp`](Source/LostExpedition/ExplorerVisualComponent.cpp) | Runtime IK retargeting to the clothed character |
 | [`create_island_materials.py`](Scripts/create_island_materials.py) | Blended sand and rock, shallow water, shoreline foam, and vegetation materials |
 
-The current suite passes **122 checks with zero failures**. The [runtime report](Docs/runtime-test.txt) covers the beach-to-tower route, all 23 handholds, the three climbing stages, explicit Space input and one-command buffering, ground-probe cancellation, moving obstacles, 30/60/120 Hz jump paths, the clothed character's pelvis and wall contacts, rooftop ascent/descent, ground Motion Matching, weapon layers, items and saves. These results apply to the configured local project; rerun them after restoring assets in a fresh clone.
+The current suite passes **127 checks with zero failures**. The [runtime report](Docs/runtime-test.txt) covers the beach-to-tower route, all 23 handholds, the three climbing stages, explicit Space input and one-command buffering, ground-probe cancellation, moving obstacles, 30/60/120 Hz jump paths, the clothed character's pelvis and wall contacts, rooftop ascent/descent, ground Motion Matching, weapon layers, items and saves. These results apply to the configured local project; rerun them after restoring assets in a fresh clone.
 
 For repeatable screenshots, run `Scripts/editor_view.py` at editor startup with `-AdventureCapture -AdventureCaptureExit`. It writes the full-resolution island views to `Docs/`. Launching the game with `-WatchtowerVisualReview` captures a real wall-gripping state to `Docs/tower-gameplay.png` and exits. Only the compressed copies in `Docs/Images/` are included in Git.
 
-`Scripts/WallClimbReview.command` captures 480 frames at a 60 Hz animation timestep into `Docs/WallClimbFrames/`; assemble the README preview with `python3 Scripts/assemble_animation_previews.py --wall-climb-only` using Pillow. `Scripts/AnimationReview.command` captures weapon and complete traversal reviews into `Docs/AnimationFrames/`. All source frames remain local. On macOS, encode every frame with `swift -module-cache-path /tmp/lostexpedition-swift Scripts/encode_review_video.swift Docs/WallClimbFrames Docs/Images/wall-climb-60fps.mp4 60 480` (use a new output path). See [the continuity report](Docs/climb-continuity-summary.json) for measured before/after results.
+`Scripts/WallClimbReview.command` captures 630 frames at a 60 Hz animation timestep into `Docs/WallClimbFrames/`; assemble the README preview with `python3 Scripts/assemble_animation_previews.py --wall-climb-only` using Pillow. `Scripts/AnimationReview.command` captures weapon and complete traversal reviews into `Docs/AnimationFrames/`. All source frames remain local. On macOS, encode every frame with `swift -module-cache-path /tmp/lostexpedition-swift Scripts/encode_review_video.swift Docs/WallClimbFrames Docs/Images/wall-climb-60fps.mp4 60 630` (use a new output path). See [the continuity report](Docs/climb-continuity-summary.json) for the measured cases.
 
 ## Current scope
 
-This is a single-player adventure prototype with the clothed Diesel character. Wall actions sample full-body keyframe sequences with phase-weighted contact IK; imported climbing motion capture remains future work. Ground Motion Matching/Pose Search is active using official template locomotion loops. Dedicated start/stop and pivot clips still need expanded coverage. Root-motion Motion Warping is not active, and Game Animation Sample has not been imported. Rope swinging, audio, and cinematic sequences are not implemented. External asset sources and restoration instructions are listed in [Docs/ASSETS.md](Docs/ASSETS.md).
+This is a single-player adventure prototype. TwinBlast and selected Epic motion-capture clips are installed locally. Wall transfers remain a hybrid of captured upper-body motion, authored wall support poses and contact IK; this is not a complete Uncharted-quality climbing library. Ground Motion Matching uses the existing 51 official template loops; dedicated starts/stops and pivots still need expanded coverage. Root-motion Motion Warping, coat physics, rope swinging, audio and cinematic sequences are not implemented. See [Docs/ASSETS.md](Docs/ASSETS.md) for asset sources and restoration.

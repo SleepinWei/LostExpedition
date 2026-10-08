@@ -1,0 +1,14 @@
+{
+  "sample": "Game Animation Sample 5.8",
+  "url": "https://www.fab.com/listings/880e319a-a59e-4ed2-b268-b32dac7fa016",
+  "selected_packages": [
+    "/Game/Characters/UEFN_Mannequin/Animations/Jump/M_Neutral_Jump_F_Start_Stand_Lfoot",
+    "/Game/Characters/UEFN_Mannequin/Animations/Traversal/Climb/M_Neutral_Traversal_Climb_Start_2_5_stand_F_Lfoot",
+    "/Game/Characters/UEFN_Mannequin/Animations/Traversal/Climb/M_Neutral_Traversal_Climb_Start_2_5_stand_F_Rfoot",
+    "/Game/Characters/UEFN_Mannequin/Animations/Traversal/Mantle/M_Neutral_Traversal_Mantle_1_0_stand_F_Lfoot",
+    "/Game/Characters/UEFN_Mannequin/Meshes/SKM_UEFN_Mannequin",
+    "/Game/Characters/Paragon/Heroes/TwinBlast/Meshes/SKM_TwinBlast_ActionHero"
+  ],
+  "dependencies": "Migrated by Unreal AssetTools",
+  "conflicts": "Preserve existing packages (Skip)"
+}

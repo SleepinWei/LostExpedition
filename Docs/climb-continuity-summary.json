@@ -1,29 +1,24 @@
 {
-  "date": "2026-10-08",
+  "date": "2026-10-09",
   "engine": "Unreal Engine 5.8.3 / Mac Development",
-  "scope": "13 visible Diesel joints; 3 input scenarios, 180 frames each at 60 Hz. Vertical, lateral and interrupted probe with one buffered leap. Input schedules, jump timing and positional contact curves are unchanged. Wrists now retain animation during flight. Measurements do not certify artistic quality or hardware frame rate.",
-  "baseline_commit": "fcb21b6761ac5e4ea456b5644ee86ac1b54bea50",
-  "before": {
-    "max_joint_step_cm": 11.4642,
-    "max_joint_rotation_degrees": 14.6795,
-    "probe_direction_change_max_step_cm": 0.3325,
-    "planted_foot_max_step_cm": 0.0
-  },
+  "character": "SKM_TwinBlast_ActionHero",
+  "scope": "13 visible joints; 5 input scenarios, 180 frames each at 60 Hz: vertical, lateral, interrupted probe, full ground probe and immediate Space from the ground, including buffered leaps. Measurements do not certify artistic quality or hardware frame rate.",
+  "previous_code_commit": "3c99f2d4ba7ecf1b0a4d949def3ba1ce5825ab45",
   "after": {
-    "max_joint_step_cm": 11.4651,
-    "max_joint_rotation_degrees": 17.3986,
-    "probe_direction_change_max_step_cm": 0.3327,
+    "max_joint_step_cm": 10.9286,
+    "max_joint_rotation_degrees": 18.8995,
+    "probe_direction_change_max_step_cm": 0.4605,
     "planted_foot_max_step_cm": 0.0
   },
-  "after_max_state_boundary_step_cm": 2.251,
-  "runtime_checks": 122,
+  "after_max_state_boundary_step_cm": 2.1852,
+  "runtime_checks": 127,
   "failures": 0,
   "jump_performance": {
-    "preload_pelvis_drop_cm": 4.957,
-    "four_contacts_zero_frames_at_60_hz": 14,
-    "unconstrained_seconds": 0.23333333333333334,
-    "free_hand_travel_relative_to_capsule_cm": 24.446,
-    "free_foot_travel_relative_to_capsule_cm": 26.507,
+    "preload_pelvis_drop_cm": 3.871,
+    "four_contacts_zero_frames_at_60_hz": 13,
+    "unconstrained_seconds": 0.21666666666666667,
+    "free_hand_travel_relative_to_capsule_cm": 16.395,
+    "free_foot_travel_relative_to_capsule_cm": 32.352,
     "anatomical_hand_sides_pass": true
   },
   "secure_hand_error_cm": 0.0,
@@ -31,7 +26,7 @@
   "capsule_30_120_hz_difference_cm": 0.0,
   "visible_pelvis_30_120_hz_acceptance_cm": 4.0,
   "zero_contact_wrist_rotation": {
-    "tested_hand_samples": 27,
+    "tested_hand_samples": 26,
     "max_contact_override_degrees": 0.001135,
     "acceptance_degrees": 0.01
   }

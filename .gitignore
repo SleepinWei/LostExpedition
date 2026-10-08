@@ -61,3 +61,5 @@ __pycache__/
 # Full-rate review video is small; raw continuity traces and iterations stay local.
 /Docs/climb-continuity.csv
 /Docs/climb-iteration*.mp4
+
+!/Docs/Images/twinblast-character.jpg

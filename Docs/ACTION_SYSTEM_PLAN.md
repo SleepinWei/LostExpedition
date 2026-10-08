@@ -70,7 +70,7 @@ The first character upgrade replaced the visible mannequin with the CC0 Diesel c
 
 ## Remaining coverage and next work
 
-Game Animation Sample is optional expanded content, not a prerequisite for the installed Motion Matching system. It has not been downloaded or migrated. Dedicated start/stop and pivot coverage, imported climbing motion capture and varied landing clips remain future work.
+Game Animation Sample is optional expanded content, not a prerequisite for the installed Motion Matching system. The 5.8 sample is downloaded and selected mocap clips plus TwinBlast are migrated. Ground jump, wall entry and top-out use captured motion; wall transfers retain authored support poses with a captured upper-body layer. Dedicated hanging leaps, start/stop and pivot coverage, and varied landing clips remain future work.
 
 1. Expand compatible authored movement/traversal coverage from the free sample or other licensed clips, preserving skeleton and dependency restoration.
 2. Tune selection and transitions against those clips; use Motion Warping only for traversal sequences with compatible authored root motion.

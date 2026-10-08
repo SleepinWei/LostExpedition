@@ -1,0 +1,26 @@
+{
+  "source": "Epic Game Animation Sample 5.8",
+  "clips": [
+    {
+      "source": "/Game/Characters/UEFN_Mannequin/Animations/Jump/M_Neutral_Jump_F_Start_Stand_Lfoot",
+      "retargeted": "/Game/Animation/Mocap/MC_M_Neutral_Jump_F_Start_Stand_Lfoot",
+      "duration_seconds": 2.5
+    },
+    {
+      "source": "/Game/Characters/UEFN_Mannequin/Animations/Traversal/Climb/M_Neutral_Traversal_Climb_Start_2_5_stand_F_Lfoot",
+      "retargeted": "/Game/Animation/Mocap/MC_M_Neutral_Traversal_Climb_Start_2_5_stand_F_Lfoot",
+      "duration_seconds": 3.3333332538604736
+    },
+    {
+      "source": "/Game/Characters/UEFN_Mannequin/Animations/Traversal/Climb/M_Neutral_Traversal_Climb_Start_2_5_stand_F_Rfoot",
+      "retargeted": "/Game/Animation/Mocap/MC_M_Neutral_Traversal_Climb_Start_2_5_stand_F_Rfoot",
+      "duration_seconds": 3.5
+    },
+    {
+      "source": "/Game/Characters/UEFN_Mannequin/Animations/Traversal/Mantle/M_Neutral_Traversal_Mantle_1_0_stand_F_Lfoot",
+      "retargeted": "/Game/Animation/Mocap/MC_M_Neutral_Traversal_Mantle_1_0_stand_F_Lfoot",
+      "duration_seconds": 2.0
+    }
+  ],
+  "character": "/Game/Characters/Paragon/Heroes/TwinBlast/Meshes/SKM_TwinBlast_ActionHero.SKM_TwinBlast_ActionHero"
+}

@@ -121,14 +121,28 @@ void AExplorerCharacter::RunSmokeTest() {
     Check(BeginHang()&&Traversal==ETraversalState::Probing,TEXT("Approaching the first handle starts the exploratory reach stage"));
     Advance(.6f);
     Check(GetActorLocation().Equals(GroundStart,.01f)&&Traversal==ETraversalState::Probing,TEXT("Ground probing never teleports the capsule or automatically jumps"));
-    Check(CharacterVisual->GetCharacterMesh()&&CharacterVisual->IsVisible()&&!ClimbPose->IsVisible()&&!GetMesh()->IsVisible()&&CharacterVisual->IsRetargetReady(),TEXT("The clothed Diesel character is visible and uses the runtime IK retargeter"));
-    Check(CharacterVisual->GetBoneLocationByName(TEXT("mixamorig_Hips"),EBoneSpaces::WorldSpace).Z>GetActorLocation().Z-20,TEXT("Retargeting preserves pelvis height instead of replacing it with the ground root"));
+    Check(CharacterVisual->GetCharacterMesh()&&CharacterVisual->IsVisible()&&!ClimbPose->IsVisible()&&!GetMesh()->IsVisible()&&CharacterVisual->IsRetargetReady(),TEXT("The selected clothed character is visible and uses the runtime IK retargeter"));
+    Check(CharacterVisual->GetBoneLocationByName(CharacterVisual->ResolveBone(TEXT("pelvis")),EBoneSpaces::WorldSpace).Z>GetActorLocation().Z-20,TEXT("Retargeting preserves pelvis height instead of replacing it with the ground root"));
     bool ClipsReady=WallClimbAnimations.Num()==8;
     for(auto Clip:WallClimbAnimations)ClipsReady=ClipsReady&&Clip&&Clip->GetPlayLength()>.2f;
     Check(ClipsReady,TEXT("Eight full body sequences cover ground reach/leap, mirrored wall probe/leap, catch and hang"));
+    bool MocapReady=MocapClimbAnimations.Num()==2;
+    for(auto Clip:MocapClimbAnimations)MocapReady=MocapReady&&Clip&&Clip->GetPlayLength()>3&&Clip->GetSkeleton()==GetMesh()->GetSkeletalMeshAsset()->GetSkeleton();
+    Check(MocapReady,TEXT("Both Epic mocap climbing performances are retargeted to the active source skeleton"));
+    bool Landmarks=true;
+    for(const TCHAR* Bone:{TEXT("pelvis"),TEXT("upperarm_l"),TEXT("lowerarm_l"),TEXT("hand_l"),TEXT("upperarm_r"),TEXT("lowerarm_r"),TEXT("hand_r"),TEXT("thigh_l"),TEXT("calf_l"),TEXT("foot_l"),TEXT("thigh_r"),TEXT("calf_r"),TEXT("foot_r")})Landmarks=Landmarks&&CharacterVisual->GetBoneIndex(CharacterVisual->ResolveBone(Bone))!=INDEX_NONE;
+    Check(Landmarks,TEXT("The selected character resolves all hand, elbow, pelvis, knee and foot landmarks"));
+    bool EmbeddedWeaponsHidden=true;
+    for(const TCHAR* Bone:{TEXT("weapon_l"),TEXT("weapon_r"),TEXT("ult_weapon_l"),TEXT("ult_weapon_r"),TEXT("ult_root"),TEXT("grenade")}) {
+        const int32 Index=CharacterVisual->GetBoneIndex(Bone);
+        if(Index!=INDEX_NONE)EmbeddedWeaponsHidden=EmbeddedWeaponsHidden&&CharacterVisual->GetBoneTransformByName(Bone,EBoneSpaces::ComponentSpace).GetScale3D().IsNearlyZero();
+    }
+    Check(EmbeddedWeaponsHidden,TEXT("Paragon's embedded weapon assemblies are hidden; project weapons remain separate"));
     Check(!BeginMantle(),TEXT("The exploratory reach cannot top out"));
     JumpOrClimb();Check(Traversal==ETraversalState::GripJump,TEXT("Space explicitly launches the jump-to-grab stage"));
-    Advance(ReachDuration+.03f);Check(Traversal==ETraversalState::Catching,TEXT("Landing on a handhold enters the secure catch animation"));
+    Advance(ReachDuration*.5f);
+    Check(bMocapPoseActive&&MocapPoseWeight>.99f&&MocapPoseTime>.40f&&MocapPoseTime<.72f,TEXT("Ground jump evaluates captured push-off and reach before the source top-out segment"));
+    Advance(ReachDuration*.5f+.03f);Check(Traversal==ETraversalState::Catching,TEXT("Landing on a handhold enters the secure catch animation"));
     Advance(CatchDuration+.05f);Check(Traversal==ETraversalState::Clinging&&CurrentGrip==0,TEXT("The catch settles into a supported hang on the first handle"));
     Check(!BeginMantle(),TEXT("Intermediate wall handles cannot be used as walkable platforms"));
     auto ResetGrip=[&](int32 Index){
@@ -136,19 +150,22 @@ void AExplorerCharacter::RunSmokeTest() {
         SetActorLocation(ExpeditionTower::HangPosition(Index)+FVector(-40,0,0));SetActorRotation(FRotator::ZeroRotator);LedgeCooldown=0;BeginWallGrip();JumpOrClimb();Advance(1.4f);GripCooldown=0;
     };
     // Measure the visible rig, including retargeting and final contact IK, at 60 Hz.
-    // Keep the same input trace for the before/after comparison.
+    // Cover both a full ground probe and Space buffered immediately on entry.
     FString Continuity=TEXT("scenario,frame,stage,bone,x,y,z,step_cm,rotation_deg\n");
     float MaxJointStep=0,MaxJointRotation=0,MaxBoundaryStep=0,MaxRetargetStep=0,MaxPlantedFootStep=0;
-    const FName ReviewBones[]={TEXT("mixamorig_Hips"),TEXT("mixamorig_Spine2"),TEXT("mixamorig_Head"),TEXT("mixamorig_LeftArm"),TEXT("mixamorig_LeftForeArm"),TEXT("mixamorig_LeftHand"),TEXT("mixamorig_RightArm"),TEXT("mixamorig_RightForeArm"),TEXT("mixamorig_RightHand"),TEXT("mixamorig_LeftLeg"),TEXT("mixamorig_LeftFoot"),TEXT("mixamorig_RightLeg"),TEXT("mixamorig_RightFoot")};
-    for(int32 Scenario=0;Scenario<3;Scenario++) {
-        ResetGrip(Scenario==1?8:1);
+    const FName ReviewBones[]={CharacterVisual->ResolveBone(TEXT("pelvis")),CharacterVisual->ResolveBone(TEXT("spine_03")),CharacterVisual->ResolveBone(TEXT("head")),CharacterVisual->ResolveBone(TEXT("upperarm_l")),CharacterVisual->ResolveBone(TEXT("lowerarm_l")),CharacterVisual->ResolveBone(TEXT("hand_l")),CharacterVisual->ResolveBone(TEXT("upperarm_r")),CharacterVisual->ResolveBone(TEXT("lowerarm_r")),CharacterVisual->ResolveBone(TEXT("hand_r")),CharacterVisual->ResolveBone(TEXT("calf_l")),CharacterVisual->ResolveBone(TEXT("foot_l")),CharacterVisual->ResolveBone(TEXT("calf_r")),CharacterVisual->ResolveBone(TEXT("foot_r"))};
+    for(int32 Scenario=0;Scenario<5;Scenario++) {
+        if(Scenario>=3) {
+            Drop();Traversal=ETraversalState::Walking;GetCharacterMovement()->SetMovementMode(MOVE_Walking);
+            SetActorLocation(ExpeditionTower::Grip(0)+FVector(-88,0,-121));SetActorRotation(FRotator::ZeroRotator);LedgeCooldown=0;Advance(.4f);BeginWallGrip();Advance(1.f/60);
+        } else ResetGrip(Scenario==1?8:1);
         TArray<FTransform> Previous;for(FName Bone:ReviewBones)Previous.Add(CharacterVisual->GetBoneTransformByName(Bone,EBoneSpaces::WorldSpace));
         ETraversalState PreviousStage=Traversal;
         for(int32 Frame=0;Frame<180;Frame++) {
-            if(Frame==0)MoveWallGrip(Scenario==1?1:0,Scenario==1?0:1);
+            if(Frame==0&&Scenario<3)MoveWallGrip(Scenario==1?1:0,Scenario==1?0:1);
             if(Scenario==2&&Frame==12)MoveWallGrip(0,-1);
             if(Scenario==2&&Frame==24)MoveWallGrip(0,1);
-            if(Frame==36)JumpOrClimb();
+            if((Scenario==4&&Frame==0)||(Scenario!=4&&Frame==36))JumpOrClimb();
             if(Frame==48){MoveWallGrip(Scenario==1?1:0,Scenario==1?0:1);JumpOrClimb();}
             Tick(1.f/60);GetMesh()->TickAnimation(1.f/60,false);GetMesh()->RefreshBoneTransforms();UpdateClimbPose();
             for(int32 Bone=0;Bone<UE_ARRAY_COUNT(ReviewBones);Bone++) {
@@ -158,7 +175,7 @@ void AExplorerCharacter::RunSmokeTest() {
                 MaxJointStep=FMath::Max(MaxJointStep,Step);MaxJointRotation=FMath::Max(MaxJointRotation,Angle);
                 if(Traversal!=PreviousStage)MaxBoundaryStep=FMath::Max(MaxBoundaryStep,Step);
                 if(Scenario==2&&(Frame==12||Frame==24))MaxRetargetStep=FMath::Max(MaxRetargetStep,Step);
-                if(Frame<36&&(Bone==10||Bone==12))MaxPlantedFootStep=FMath::Max(MaxPlantedFootStep,Step);
+                if(Frame<36&&Traversal==ETraversalState::Probing&&(Bone==10||Bone==12))MaxPlantedFootStep=FMath::Max(MaxPlantedFootStep,Step);
                 const FVector V=Current.GetLocation();
                 Continuity+=FString::Printf(TEXT("%d,%d,%d,%s,%.4f,%.4f,%.4f,%.4f,%.4f\n"),Scenario,Frame,int32(Traversal),*ReviewBones[Bone].ToString(),V.X,V.Y,V.Z,Step,Angle);
                 Previous[Bone]=Current;
@@ -169,34 +186,35 @@ void AExplorerCharacter::RunSmokeTest() {
     FFileHelper::SaveStringToFile(Continuity,*(FPaths::ProjectDir()/TEXT("Docs/climb-continuity.csv")));
     UE_LOG(LogTemp,Display,TEXT("CLIMB_CONTINUITY maxJointStep=%.3f maxJointRotation=%.3f maxBoundaryStep=%.3f"),MaxJointStep,MaxJointRotation,MaxBoundaryStep);
     Check(MaxRetargetStep<1,TEXT("Changing probe direction preserves the visible pose within one centimetre at 60 Hz"));
-    Check(MaxJointRotation<20,TEXT("Vertical, lateral and interrupted-probe traces have no visible joint rotation over 20 degrees per 60 Hz frame"));
+    Check(MaxJointRotation<20,TEXT("Ground entry, vertical, lateral and interrupted-probe traces have no visible joint rotation over 20 degrees per 60 Hz frame"));
     Check(MaxBoundaryStep<3,TEXT("Probe, leap, catch and buffered transitions stay below three centimetres per boundary frame"));
     Check(MaxPlantedFootStep<.2f,TEXT("Planted boots drift less than two millimetres per frame while probing"));
     UE_LOG(LogTemp,Display,TEXT("CLIMB_CONTINUITY probeRetargetStep=%.4f plantedFootStep=%.4f"),MaxRetargetStep,MaxPlantedFootStep);
     // A smooth capsule path alone is not a jump. Require a visible preload,
     // animated limb travel and an actual interval with all four contacts released.
     ResetGrip(1);MoveWallGrip(0,1);Advance(.4f);
-    const float StartPelvis=CharacterVisual->GetBoneLocationByName(TEXT("mixamorig_Hips"),EBoneSpaces::WorldSpace).Z;
+    const float StartPelvis=CharacterVisual->GetBoneLocationByName(CharacterVisual->ResolveBone(TEXT("pelvis")),EBoneSpaces::WorldSpace).Z;
     JumpOrClimb();
     float LowestPelvis=StartPelvis,MaxFreeHandTravel=0,MaxFreeFootTravel=0,MaxFreeWristOverride=0;
-    int FreeFrames=0,FreeWristSamples=0;bool AnatomicalSides=true;FVector FirstFreeHand,FirstFreeFoot;
+    int FreeFrames=0,FreeWristSamples=0,MocapFlightFrames=0;bool AnatomicalSides=true;FVector FirstFreeHand,FirstFreeFoot;
     for(int Frame=0;Frame<60;Frame++) {
         Tick(1.f/60);GetMesh()->TickAnimation(1.f/60,false);GetMesh()->RefreshBoneTransforms();UpdateClimbPose();
         if(Traversal!=ETraversalState::GripJump)continue;
         const float T=ReachTime/ReachDuration;
-        if(T<.20f)LowestPelvis=FMath::Min(LowestPelvis,float(CharacterVisual->GetBoneLocationByName(TEXT("mixamorig_Hips"),EBoneSpaces::WorldSpace).Z));
+        if(bMocapPoseActive&&MocapPoseWeight>.5f)MocapFlightFrames++;
+        if(T<.20f)LowestPelvis=FMath::Min(LowestPelvis,float(CharacterVisual->GetBoneLocationByName(CharacterVisual->ResolveBone(TEXT("pelvis")),EBoneSpaces::WorldSpace).Z));
         if(HandContact[0]+HandContact[1]+FootContact[0]+FootContact[1]<.001f) {
-            const FVector Hand=CharacterVisual->GetBoneLocationByName(TEXT("mixamorig_RightHand"),EBoneSpaces::WorldSpace)-GetActorLocation();
-            const FVector Foot=CharacterVisual->GetBoneLocationByName(TEXT("mixamorig_LeftFoot"),EBoneSpaces::WorldSpace)-GetActorLocation();
+            const FVector Hand=CharacterVisual->GetBoneLocationByName(CharacterVisual->ResolveBone(TEXT("hand_r")),EBoneSpaces::WorldSpace)-GetActorLocation();
+            const FVector Foot=CharacterVisual->GetBoneLocationByName(CharacterVisual->ResolveBone(TEXT("foot_l")),EBoneSpaces::WorldSpace)-GetActorLocation();
             for(int I=0;I<2;I++) {
                 // Position/rotation curves share exact zero-contact intervals,
                 // but have different tiny nonzero weights near the endpoints.
                 if(HandContact[I]==0) {
-                    const FQuat WristRotation=CharacterVisual->GetBoneTransformByName(I==0?TEXT("mixamorig_LeftHand"):TEXT("mixamorig_RightHand"),EBoneSpaces::WorldSpace).GetRotation();
+                    const FQuat WristRotation=CharacterVisual->GetBoneTransformByName(I==0?CharacterVisual->ResolveBone(TEXT("hand_l")):CharacterVisual->ResolveBone(TEXT("hand_r")),EBoneSpaces::WorldSpace).GetRotation();
                     MaxFreeWristOverride=FMath::Max(MaxFreeWristOverride,float(FMath::RadiansToDegrees(WristRotation.AngularDistance(UnconstrainedVisualWrist[I]))));
                     FreeWristSamples++;
                 }
-                const FVector Wrist=CharacterVisual->GetBoneLocationByName(I==0?TEXT("mixamorig_LeftHand"):TEXT("mixamorig_RightHand"),EBoneSpaces::WorldSpace);
+                const FVector Wrist=CharacterVisual->GetBoneLocationByName(I==0?CharacterVisual->ResolveBone(TEXT("hand_l")):CharacterVisual->ResolveBone(TEXT("hand_r")),EBoneSpaces::WorldSpace);
                 AnatomicalSides=AnatomicalSides&&FVector::DotProduct(Wrist-GetActorLocation(),GetActorRightVector())*(I==0?-1:1)>0;
             }
             if(FreeFrames++==0){FirstFreeHand=Hand;FirstFreeFoot=Foot;}
@@ -206,6 +224,7 @@ void AExplorerCharacter::RunSmokeTest() {
     }
     UE_LOG(LogTemp,Display,TEXT("CLIMB_PERFORMANCE preload=%.3f freeFrames=%d armSwing=%.3f legSwing=%.3f"),StartPelvis-LowestPelvis,FreeFrames,MaxFreeHandTravel,MaxFreeFootTravel);
     Check(StartPelvis-LowestPelvis>2,TEXT("Wall jump visibly lowers the pelvis before push-off"));
+    Check(MocapFlightFrames>=8,TEXT("Wall transfer samples captured upper-body reach during flight"));
     Check(FreeFrames>=12,TEXT("Wall jump releases all four contact constraints for at least 0.2 seconds"));
     Check(MaxFreeHandTravel>12&&MaxFreeFootTravel>12,TEXT("Unconstrained flight contains arm swing and leg tuck beyond capsule translation"));
     Check(AnatomicalSides,TEXT("Free-flight hands remain on their anatomical sides after retargeting"));
@@ -223,11 +242,11 @@ void AExplorerCharacter::RunSmokeTest() {
     for(int R=0;R<3;R++) {
         ResetGrip(0);MoveWallGrip(0,1);Advance(.3f);JumpOrClimb();
         for(int F=0;F<Rates[R]*.4f;F++){Tick(1.f/Rates[R]);UpdateClimbPose();}
-        RatePositions[R]=GetActorLocation();RatePelvis[R]=CharacterVisual->GetBoneLocationByName(TEXT("mixamorig_Hips"),EBoneSpaces::WorldSpace);
+        RatePositions[R]=GetActorLocation();RatePelvis[R]=CharacterVisual->GetBoneLocationByName(CharacterVisual->ResolveBone(TEXT("pelvis")),EBoneSpaces::WorldSpace);
         Check(Traversal==ETraversalState::GripJump,FString::Printf(TEXT("Space leap evaluates between grips at %d Hz"),Rates[R]));
         Advance(.9f);Check(Traversal==ETraversalState::Clinging&&CurrentGrip==1,TEXT("A jump command catches exactly one selected grip"));
         for(int Index=0;Index<2;Index++) {
-            const FName Hand=Index==0?TEXT("mixamorig_LeftHand"):TEXT("mixamorig_RightHand"),Foot=Index==0?TEXT("mixamorig_LeftFoot"):TEXT("mixamorig_RightFoot");
+            const FName Hand=Index==0?CharacterVisual->ResolveBone(TEXT("hand_l")):CharacterVisual->ResolveBone(TEXT("hand_r")),Foot=Index==0?CharacterVisual->ResolveBone(TEXT("foot_l")):CharacterVisual->ResolveBone(TEXT("foot_r"));
             LargestContactError=FMath::Max(LargestContactError,float(FVector::Dist(CharacterVisual->GetBoneLocationByName(Hand,EBoneSpaces::WorldSpace),AnimatedHands[Index])));
             LargestFootError=FMath::Max(LargestFootError,float(FVector::Dist(CharacterVisual->GetBoneLocationByName(Foot,EBoneSpaces::WorldSpace),AnimatedFeet[Index])));
         }
@@ -254,7 +273,7 @@ void AExplorerCharacter::RunSmokeTest() {
         Check(Climbed,FString::Printf(TEXT("Probe / Space leap / secure catch %02d / %02d"),I,ExpeditionTower::Steps-1));
     }
     Check(Climbed&&BeginMantle(),TEXT("Start the final mantle from the top stone handle"));
-    if(Traversal==ETraversalState::Mantling){Advance(.38f);Check(CharacterVisual->IsVisible()&&Traversal==ETraversalState::Mantling,TEXT("The clothed character stays animated through the rooftop pull-up"));Advance(MantleDuration-.38f+.03f);}
+    if(Traversal==ETraversalState::Mantling){Advance(.38f);Check(CharacterVisual->IsVisible()&&Traversal==ETraversalState::Mantling&&bMocapPoseActive&&MocapPoseWeight==1,TEXT("The clothed character evaluates full-body mocap through the rooftop pull-up"));Advance(MantleDuration-.38f+.03f);}
     Check(Traversal==ETraversalState::Walking&&FMath::Abs(GetActorLocation().Z-(ExpeditionTower::SummitZ()+99))<3,TEXT("Stand on the ruined tower roof after climbing the entire wall"));
     FHitResult SummitHit;SetActorLocation(ExpeditionTower::Base+FVector(0,0,ExpeditionTower::Height+99),true,&SummitHit);RefreshLoot();
     Check(!SummitHit.bBlockingHit&&Nearby.IsValid()&&Nearby->ItemId==TEXT("TowerSummitCheckpoint"),TEXT("Summit checkpoint can be reached and interacted with"));

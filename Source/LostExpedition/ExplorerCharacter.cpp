@@ -5,6 +5,7 @@
 #include "ExplorerPoseComponent.h"
 #include "ExplorerMotionMatching.h"
 #include "ExplorerVisualComponent.h"
+#include "Retargeter/IKRetargeter.h"
 #include "Animation/AnimSequence.h"
 #include "ExpeditionActors.h"
 #include "Camera/CameraComponent.h"
@@ -42,11 +43,18 @@ AExplorerCharacter::AExplorerCharacter() {
     ClimbPose->SetCollisionEnabled(ECollisionEnabled::NoCollision);ClimbPose->SetVisibility(true);GetMesh()->SetVisibility(false);
     ClimbPose->AddTickPrerequisiteComponent(GetMesh());
     CharacterVisual=CreateDefaultSubobject<UExplorerVisualComponent>(TEXT("ExplorerCharacterVisual"));CharacterVisual->SetupAttachment(RootComponent);
-    CharacterVisual->SetSkinnedAssetAndUpdate(LoadObject<USkeletalMesh>(nullptr,TEXT("/Game/Explorer/Character/Explorer/SkeletalMeshes/SK_Diesel")));
-    CharacterVisual->SetRelativeTransform(GetMesh()->GetRelativeTransform());CharacterVisual->SetRelativeScale3D(FVector(.86f));
+    const bool Legacy=FParse::Param(FCommandLine::Get(),TEXT("LegacyExplorer"));
+    auto* Hero=Legacy?nullptr:LoadObject<USkeletalMesh>(nullptr,TEXT("/Game/Characters/Paragon/Heroes/TwinBlast/Meshes/SKM_TwinBlast_ActionHero"));
+    auto* HeroRetarget=Hero?LoadObject<UIKRetargeter>(nullptr,TEXT("/Game/Explorer/RTG_Explorer_TwinBlast")):nullptr;
+    if(!HeroRetarget)Hero=nullptr;
+    CharacterVisual->SetSkinnedAssetAndUpdate(Hero?Hero:LoadObject<USkeletalMesh>(nullptr,TEXT("/Game/Explorer/Character/Explorer/SkeletalMeshes/SK_Diesel")));
+    CharacterVisual->RetargetAsset=Hero?HeroRetarget:LoadObject<UIKRetargeter>(nullptr,TEXT("/Game/Explorer/RTG_Explorer_Diesel"));
+    CharacterVisual->SetRelativeTransform(GetMesh()->GetRelativeTransform());CharacterVisual->SetRelativeScale3D(FVector(Hero?1.f:.86f));
     CharacterVisual->SetCollisionEnabled(ECollisionEnabled::NoCollision);
     for(const TCHAR* Name:{TEXT("Probe_Ground"),TEXT("Probe_Left"),TEXT("Probe_Right"),TEXT("Jump_Left"),TEXT("Jump_Right"),TEXT("Catch"),TEXT("Hang"),TEXT("Jump_Ground")})
         WallClimbAnimations.Add(LoadObject<UAnimSequence>(nullptr,*(FString(TEXT("/Game/Animation/WallClimb/AS_"))+Name)));
+    for(const TCHAR* Name:{TEXT("MC_M_Neutral_Traversal_Climb_Start_2_5_stand_F_Lfoot"),TEXT("MC_M_Neutral_Traversal_Climb_Start_2_5_stand_F_Rfoot")})
+        MocapClimbAnimations.Add(LoadObject<UAnimSequence>(nullptr,*(FString(TEXT("/Game/Animation/Mocap/"))+Name)));
     WeaponIdleAnimations={LoadObject<UAnimSequence>(nullptr,TEXT("/Game/Characters/Mannequins/Anims/Pistol/MF_Pistol_Idle_ADS")),LoadObject<UAnimSequence>(nullptr,TEXT("/Game/Characters/Mannequins/Anims/Rifle/MF_Rifle_Idle_ADS"))};
     WeaponFireAnimations={LoadObject<UAnimSequence>(nullptr,TEXT("/Game/Characters/Mannequins/Anims/Pistol/MM_Pistol_Fire")),LoadObject<UAnimSequence>(nullptr,TEXT("/Game/Characters/Mannequins/Anims/Rifle/MM_Rifle_Fire"))};
     WeaponReloadAnimations={LoadObject<UAnimSequence>(nullptr,TEXT("/Game/Characters/Mannequins/Anims/Pistol/MM_Pistol_Reload")),LoadObject<UAnimSequence>(nullptr,TEXT("/Game/Characters/Mannequins/Anims/Rifle/MM_Rifle_Reload"))};
